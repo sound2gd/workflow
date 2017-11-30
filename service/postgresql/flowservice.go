@@ -3,97 +3,31 @@ package workflow
 import (
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx"
-	"strings"
-	//"strings"
-	"github.com/nsqio/go-nsq"
-	"github.com/satori/go.uuid"
 	"strconv"
+	"strings"
 	"time"
-	"xtion.net/mcrm/flowservice/message"
-	log "xtion.net/mcrm/logger"
-	"xtion.net/mcrm/util"
+
+	"github.com/jackc/pgx"
 )
-
-//事务
-type CaseInfo struct {
-	CaseId         string    `json:"caseid"`         //流程实例id
-	ItemId         int32     `json:"itemid"`         //流程当前步骤id
-	FlowId         string    `json:"flowid"`         //流程id
-	Name           string    `json:"flowname"`       //流程名称
-	Creator        string    `json:"creator"`        //流程发起人账号
-	Creatorname    string    `json:"creatorname"`    //流程发起人姓名
-	Createtime     time.Time `json:"createtime"`     //流程发起时间
-	Handleuserid   string    `json:"handleuserid"`   //步骤原处理人(有代理人)
-	Handleusername string    `json:"handleusername"` //步骤原处理人姓名
-	Handletime     string    `json:"handletime"`     //处理时间
-	ChoiceItems    string    `json:"choiceitems"`    //审核选项
-	Stepname       string    `json:"stepname"`       //当前步骤名称
-	Stepstatus     int32     `json:"stepstatus"`     //当前步骤的状态，0:未处理 1:已读 2:已处理
-	Status         int32     `json:"status"`         //状态,0:审批中 1:通过 2:不通过
-	Appid          string    `json:"appid"`          //流程关联的业务对象(记录在crm_t_entityreg)
-	Bizid1         string    `json:"bizid1"`         //业务主键1
-	Bizid2         string    `json:"bizid2"`         //业务主键2
-	SendTime       string    `json:"sendtime"`       //发送时间
-	SerialNumber   string    `json:"serialnumber"`   //流水号
-	Choice         string    `json:"choice"`         //审核
-	PluginId       string    `json:"pluginid"`       //插件id
-	FlowStatus     int32     `json:"flowstatus"`     //流程状态 1启用0停用
-}
-
-//代办事务
-type CaseList struct {
-	Items      []*CaseInfo
-	TotalItems int32
-}
-
-//流程列表
-type FlowList struct {
-	Items      []*FlowInfo
-	TotalItems int32
-}
-
-//流程的信息
-type FlowInfo struct {
-	FlowId         string    `json:"flowid"`
-	Name           string    `json:"flowname"`
-	Descript       string    `json:"descript"`
-	FlowXml        string    `json:"flowxml"`
-	StepCount      int32     `json:"stepcount"`
-	CreateTime     time.Time `json:"createtime"`
-	Creator        string    `json:"creator"`
-	Status         int32     `json:"status"`
-	UpdateTime     string    `json:"updatetime"`
-	Updator        string    `json:"updator"`
-	FlowType       int32     `json:"flowtype"`
-	AppId          string    `json:"appid"`
-	EntityType     int32     `json:"entitytype"`     //1系统对象2插件对象
-	FlowCategory   int32     `json:"flowcategory"`   //1表示固定流程，0表示自由流程
-	PluginStatus   int32     `json:"pluginstatus"`   //插件状态 1在用
-	PVersionStatus int32     `json:"pversionstatus"` //插件版本
-	PowerControl   int32     `json:"powercontrol"`   //权限控制
-}
 
 //------------------------------------------------------------
 type FlowHelper struct {
-	conCfg   *pgx.ConnConfig
-	constr   string
-	producer *nsq.Producer
-	topic    string
+	conCfg *pgx.ConnConfig
+	constr string
+	topic  string
 }
 
 //初始化
-func New_FLowHelper(constr string, producer *nsq.Producer, topic string) (*FlowHelper, error) {
+func New_FLowHelper(constr string, topic string) (*FlowHelper, error) {
 
 	cfg, err := util.GetConnCfg(constr)
 	if err != nil {
 		return nil, err
 	}
 	fh := &FlowHelper{
-		conCfg:   cfg,
-		constr:   constr,
-		producer: producer,
-		topic:    topic,
+		conCfg: cfg,
+		constr: constr,
+		topic:  topic,
 	}
 	return fh, nil
 }
@@ -1653,8 +1587,8 @@ func (f *FlowHelper) GetWorkFlowStatus(appid, bizids string, wfstatus int32) (*P
 	todolist := &PluginWorkFlowInfoList{make([]*PluginWorkFlowInfo, 0, 10), 0}
 
 	sql := `select lower(af.bussinessid_1),fc.status from crm_t_appflowcase af 
-left join crm_t_flowcase fc on af.caseid = fc.caseid
-where appid = $1 and lower(bussinessid_1) = any(string_to_array(lower($2),','))`
+		left join crm_t_flowcase fc on af.caseid = fc.caseid
+		where appid = $1 and lower(bussinessid_1) = any(string_to_array(lower($2),','))`
 
 	conn, err := pgx.Connect(*f.conCfg)
 	if err != nil {
