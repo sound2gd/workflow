@@ -1,7 +1,7 @@
 package workflow
 
-// DefineService 流程定义服务接口
-type DefineService interface {
+// FlowDefineService 流程定义服务接口
+type FlowDefineService interface {
 	//流程定义详情
 	GetFlow(flowid string) (*FlowInfo, error)
 

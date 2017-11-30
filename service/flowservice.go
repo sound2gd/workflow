@@ -1,12 +1,7 @@
 package workflow
 
 import (
-	"errors"
-	"strconv"
-	"strings"
 	"time"
-
-	"github.com/jackc/pgx"
 )
 
 // CaseInfo,DTO对象,流程事务
@@ -142,36 +137,3 @@ type FlowService interface {
 	//
 	WBStepStatus(itemid int32, caseid, usernumber string)
 }
-
-
-func arrayToString(array []int) string {
-	str := ""
-	for index, item := range array {
-		if index == 0 {
-			str = strconv.Itoa(item)
-		} else {
-			str = str + "," + strconv.Itoa(item)
-		}
-	}
-
-	str = strings.Trim(str, ",")
-	return str
-}
-
-func removeFromArray(array []int, elem int) []int {
-	i := 0
-	found := false
-	for index, item := range array {
-		if item == elem {
-			i = index
-			found = true
-			break
-		}
-	}
-	if found {
-		array = append(array[:i], array[i+1:]...)
-	}
-	return array
-}
-
-

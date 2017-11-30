@@ -1,6 +1,7 @@
 package workflow
 
-type OrgProvider interface {
+// OrgService 为流程提供组织架构信息的服务接口
+type OrgService interface {
 	//根据角色,  部门id找到用户
 	FindUser(role, departid string) (us []*FlowUser, err error)
 	//找到用户直属部门

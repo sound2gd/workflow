@@ -1,9 +1,5 @@
 package workflow
 
-const (
-	f_datetime = "2006-01-02 15:04:05"
-)
-
 type FlowProvider interface {
 	//获得流程的定义（最新版本）属性:flowid, name, descript, flowxml
 	GetFlow(flowid string) (flow *Flow, err error)
