@@ -1,0 +1,40 @@
+<!--"90ca18b9-7278-4637-b6ed-76a26a106997"-->
+<?xml version="1.0" encoding="UTF-8" ?>
+<workflow>
+    <flowstatus>
+        <status>
+            <name>发起</name>
+            <sequence>0</sequence>
+        </status>
+        <status>
+            <name>审批</name>
+            <sequence>1</sequence>
+            <participant ptype="free">
+            </participant>
+            <choices>
+                <choice name="同意">
+                    <transition trueto="审批" falseto="发起">
+                        <conditions>
+                            <!--条件: not,是否取反, datakey:业务数据取值属性, op:比较操作符, value,比较值-->
+                            <condition getnot="false" datakey="amount" 
+                                op="greator" value="150"/>
+                            <condition lop="or" getnot="false" datakey="product" 
+                                op="eq" value="1000"/>
+                        </conditions>
+                    </transition>
+                </choice>
+                <choice name="不同意">
+                    <transition trueto="发起" />
+                </choice>
+            </choices>
+        </status>
+        <status>
+            <name>通过</name>
+            <sequence>2</sequence>
+        </status>
+        <status>
+            <name>不通过</name>
+            <sequence>-1</sequence>
+        </status>
+    </flowstatus>
+</workflow>

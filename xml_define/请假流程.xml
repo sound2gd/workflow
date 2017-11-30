@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<workflow>
+    <flowstatus>
+        <status>
+            <name>发起</name>
+            <sequence>0</sequence>
+        </status>
+        <status>
+            <name>审批</name>
+            <sequence>1</sequence>
+            <participant ptype="free">
+            </participant>
+            <choices>
+                <choice name="同意">
+                    <transition trueto="审批" />
+                </choice>
+                <choice name="不同意">
+                    <transition trueto="发起" />
+                </choice>
+            </choices>
+        </status>
+        <status>
+            <name>通过</name>
+            <sequence>2</sequence>
+        </status>
+        <status>
+            <name>不通过</name>
+            <sequence>-1</sequence>
+        </status>
+    </flowstatus>
+</workflow>

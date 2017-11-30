@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<workflow>
+    <flowstatus>
+        <status>
+            <name>发起</name>
+            <!--状态的默认顺序-->
+            <sequence>0</sequence>
+        </status>
+        <status>
+            <name>市场总监审批</name>
+            <!--部门描述-->
+            <sequence>1</sequence>
+            <!--流程状态进入的时候执行的处理器-->
+            <enter name="http://aa.xx.com/api/newmail">
+                    <!--resource: app业务数据, key取值建, value默认值-->
+                    <param resource="app" key="amount" value="0"/>
+                    <!--resource: local直接从本xml文件中取值, key值建, value值-->
+                    <param resource="local" key="userid" value="22323"/>
+                    <!--resource: flow从流程数据里面取值, key值建, value值-->
+                    <!--creator,creatorname流程创建人, stepuser, stepusername流程步骤处理人, choice, 选择结果;
+                    mark,审批备注-->
+                    <param resource="flow" key="stepuser" value=""/>
+            </enter>
+            <!--寻找步骤的处理人-->
+            <!--anyuserid:由步骤处理人自由选择跟free节点不一样-->
+            <!--userid: 指定的用户id为处理人-->
+            <!--roledept:使用部门+角色寻找-->
+            <!--dept:使用部门-->
+            <!--role:角色寻找-->
+            <!--free:由步骤处理人自由选择（自由流程）-->
+            <!--creator:流程发起人-->
+            <!--stepusers:参与过流程的人-->
+            <participant ptype="userid">
+                <!--指定的用户处理, 可以设置多个逗号分隔-->
+                <userid>655607</userid>
+            </participant>
+            <choices>
+                <choice name="同意">
+                    <!--如果有condition节点, 根据条件结果选择trueto或者falseto-->
+                    <transition tureto="销售公司分管领导审批" falseto="完成">
+                        <!--业务条件, op:多个条件时, 与还是或-->
+                        <conditions>
+                            <!--条件: not,是否取反, datakey:业务数据取值属性, op:比较操作符, value,比较值-->
+                            <condition getnot="false" datakey="amount"
+                                op="greator" value="1500"/>
+                            <condition lop="and" getnot="false" datakey="product"
+                                op="eq" value="1001"/>
+                        </conditions>
+                    </transition>
+                    <!--alledit可以编辑所有字段-->
+                    <dataitems alledit="true">
+                        <item name="金额" must="true"/>
+                        <item name="数量" must="false"/>
+                    </dataitems>
+                </choice>
+                <choice name="不同意">
+                    <!--如没有condition节点, 默认选择trueto-->
+                    <transition trueto="发起"></transition>
+                </choice>
+            </choices>
+            <!--流程状态结束的时候执行的处理器-->
+            <exit name="http://aa.xx.com/api/newmail">
+                    <param resource="app" key="amount" value="0"/>
+                    <param resource="local" key="userid" value="22323"/>
+            </exit>
+        </status>
+        <status>
+            <name>销售公司分管领导审批</name>
+            <sequence>2</sequence>
+            <participant ptype="roledept">
+                <!--指定的角色-->
+                <role>团队领导</role>
+                <!--部门描述-->
+                <!--creator: 流程的创建人所在部门-->
+                <!--stepuser: 流程步骤的处理人人所在部门-->
+                <!--deptid: 特定的部门-->
+                <!--stepuserparent: 流程步骤的处理人人所在部门的父部门-->
+                <dept dtype="creator"/>
+            </participant>
+            <choices>
+                <choice name="同意">
+                    <!--如果有condition节点, 根据条件结果选择trueto或者falseto-->
+                    <transition tureto="销售公司董事长审批" />
+                </choice>
+                <choice name="不同意">
+                    <!--如没有condition节点, 默认选择trueto-->
+                    <transition trueto="发起"/>
+                </choice>
+            </choices>
+        </status>
+        <status>
+            <name>销售公司董事长审批</name>
+            <sequence>3</sequence>
+            <participant ptype="roledept">
+                <!--指定的角色-->
+                <role>团队领导</role>
+                <!--部门描述-->
+                <!--creator: 流程的创建人所在部门-->
+                <!--stepuser: 流程步骤的处理人人所在部门-->
+                <!--deptid: 特定的部门-->
+                <!--stepuserparent: 流程步骤的处理人人所在部门的父部门-->
+                <dept dtype="deptid">
+                    <deptid>35d6b043-c87b-435d-ae57-95bcab661f2a</deptid>
+                </dept>
+            </participant>
+            <choices>
+                <choice name="同意">
+                    <!--如果有condition节点, 根据条件结果选择trueto或者falseto-->
+                    <transition tureto="矿泉水集团董事长审批" />
+                </choice>
+                <choice name="不同意">
+                    <!--如没有condition节点, 默认选择trueto-->
+                    <transition trueto="发起"/>
+                </choice>
+            </choices>
+        </status>
+        <status>
+            <name>矿泉水集团董事长审批</name>
+            <sequence>4</sequence>
+            <participant ptype="roledept">
+                <!--指定的角色-->
+                <role>团队领导</role>
+                <!--部门描述-->
+                <!--creator: 流程的创建人所在部门-->
+                <!--stepuser: 流程步骤的处理人人所在部门-->
+                <!--deptid: 特定的部门-->
+                <!--stepuserparent: 流程步骤的处理人人所在部门的父部门-->
+                <dept dtype="stepuser"/>
+            </participant>
+            <choices>
+                <choice name="同意">
+                    <!--如果有condition节点, 根据条件结果选择trueto或者falseto-->
+                    <transition tureto="矿泉水集团副总裁审批" />
+                </choice>
+                <choice name="不同意">
+                    <!--如没有condition节点, 默认选择trueto-->
+                    <transition trueto="发起"/>
+                </choice>
+            </choices>
+        </status>
+        <status>
+            <name>矿泉水集团副总裁审批</name>
+            <sequence>5</sequence>
+            <participant ptype="roledept">
+                <!--指定的角色-->
+                <role>团队领导</role>
+                <!--部门描述-->
+                <!--creator: 流程的创建人所在部门-->
+                <!--stepuser: 流程步骤的处理人人所在部门-->
+                <!--deptid: 特定的部门-->
+                <!--stepuserparent: 流程步骤的处理人人所在部门的父部门-->
+                <dept dtype="stepuserparent"/>
+            </participant>
+            <choices>
+                <choice name="同意">
+                    <!--如果有condition节点, 根据条件结果选择trueto或者falseto-->
+                    <transition tureto="通过" />
+                </choice>
+                <choice name="不同意">
+                    <!--如没有condition节点, 默认选择trueto-->
+                    <transition trueto="发起"/>
+                </choice>
+            </choices>
+        </status>
+        <status>
+            <name>通过</name>
+            <sequence>6</sequence>
+			<!--完成时要通知发起人-->
+        </status>
+        <status>
+            <name>不通过</name>
+            <!--不在顺序步骤的状态, 顺序号都是-1-->
+            <sequence>-1</sequence>
+        </status>
+    </flowstatus>
+</workflow>

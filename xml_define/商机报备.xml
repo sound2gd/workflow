@@ -1,0 +1,53 @@
+<!--"20ca18b9-7278-4637-b6ed-76a26a106997"-->
+<?xml version="1.0" encoding="UTF-8" ?>
+<workflow>
+    <flowstatus>
+        <status>
+            <name>发起</name>
+            <sequence>0</sequence>
+        </status>
+        <status>
+            <name>团队领导审批</name>
+            <sequence>1</sequence>
+            <participant ptype="roledept">
+                <role>团队领导</role>
+                <dept dtype="creator"/>
+            </participant>
+            <choices>
+                <choice name="同意">
+                    <transition trueto="商机管理员审批" /> 
+                </choice>
+                <choice name="拒绝">
+                    <transition trueto="不通过" />
+                </choice> 
+            </choices>
+        </status>
+        <status>
+            <name>商机管理员审批</name>
+            <sequence>2</sequence>
+            <participant ptype="role">
+                <role>商机管理员</role>
+            </participant>
+            <choices>
+                <choice name="同意">
+                    <transition trueto="通过" />
+                    <dataitems>
+                        <!--有效期-->
+                        <item name="xwopporvaliditperiod" must="true"/>
+                    </dataitems>
+                </choice> 
+                <choice name="拒绝">
+                    <transition trueto="不通过"/>
+                </choice>
+            </choices>
+        </status>
+        <status>
+            <name>通过</name>
+            <sequence>3</sequence>
+        </status>
+        <status>
+            <name>不通过</name>
+            <sequence>-1</sequence>
+        </status>
+    </flowstatus>
+</workflow>
