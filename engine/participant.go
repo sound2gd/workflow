@@ -1,36 +1,33 @@
-package workflow
+package engine
 
 import (
 	"errors"
-	//"fmt"
 	"github.com/jteeuwen/go-pkg-xmlx"
+	"github.com/pobearm/workflow/util"
 	"strings"
 )
 
+// 流程参与人的寻找方案
 const (
-	ParitciType_Userid    uint32 = iota //指定用户
-	ParitciType_Roledept                //部门+角色
-	ParticiType_Dept                    //部门
-	ParticiType_Role                    //角色
-	ParticiType_Free                    //自由选择
-	ParticiType_AnyUserid               //通讯录所有人的人
-	ParticiType_Creator                 //流程发起人
-	ParticiType_StepUsers               //参与过流程的人
+	ParitciTypeUserid    uint32 = iota //指定用户
+	ParitciTypeRoledept                //部门+角色
+	ParticiTypeDept                    //部门
+	ParticiTypeRole                    //角色
+	ParticiTypeFree                    //自由选择
+	ParticiTypeAnyUserid               //通讯录所有人的人
+	ParticiTypeCreator                 //流程发起人
+	ParticiTypeStepUsers               //参与过流程的人
 )
 
+// 部门定义方案
 const (
-	DeptGet_Creator        uint32 = iota //流程发起人所在部门
-	DeptGet_StepUser                     //步骤处理人所在部门
-	DeptGet_Deptid                       //指定部门
-	DeptGet_StepUserParent               //步骤处理人所在部门的父级部门
+	DeptGetCreator        uint32 = iota //流程发起人所在部门
+	DeptGetStepUser                     //步骤处理人所在部门
+	DeptGetDeptid                       //指定部门
+	DeptGetStepUserParent               //步骤处理人所在部门的父级部门
 )
 
-type FlowUser struct {
-	Userid    string `json:"userid,omitempty"`
-	UserName  string `json:"username,omitempty"`
-	HeadPhoto string `json:"headphoto,omitempty"`
-}
-
+// Participant 流程步骤参与人
 type Participant struct {
 	//寻找步骤的处理人,userid: 指定的用户id为处理人,roledept:使用部门+角色寻找
 	//dept:部门内的人;  role: 角色的所有人; free: 自由选人;
@@ -45,26 +42,27 @@ type Participant struct {
 	DeptGetType uint32
 }
 
-func New_Participant(n *xmlx.Node) (*Participant, error) {
+// NewParticipant 根据xml定义,构造流程参与人
+func NewParticipant(n *xmlx.Node) (*Participant, error) {
 	p := &Participant{}
 	pt := n.As("", "ptype")
 	switch pt {
 	case "userid":
-		p.ParticiType = ParitciType_Userid
+		p.ParticiType = ParitciTypeUserid
 	case "roledept":
-		p.ParticiType = ParitciType_Roledept
+		p.ParticiType = ParitciTypeRoledept
 	case "dept":
-		p.ParticiType = ParticiType_Dept
+		p.ParticiType = ParticiTypeDept
 	case "role":
-		p.ParticiType = ParticiType_Role
+		p.ParticiType = ParticiTypeRole
 	case "free":
-		p.ParticiType = ParticiType_Free
+		p.ParticiType = ParticiTypeFree
 	case "anyuserid":
-		p.ParticiType = ParticiType_AnyUserid
+		p.ParticiType = ParticiTypeAnyUserid
 	case "creator":
-		p.ParticiType = ParticiType_Creator
+		p.ParticiType = ParticiTypeCreator
 	case "stepusers":
-		p.ParticiType = ParticiType_StepUsers
+		p.ParticiType = ParticiTypeStepUsers
 	default:
 		return nil, errors.New("not supported ptype")
 	}
@@ -78,14 +76,14 @@ func New_Participant(n *xmlx.Node) (*Participant, error) {
 		dt := dn.As("", "dtype")
 		switch dt {
 		case "creator":
-			p.DeptGetType = DeptGet_Creator
+			p.DeptGetType = DeptGetCreator
 		case "stepuser":
-			p.DeptGetType = DeptGet_StepUser
+			p.DeptGetType = DeptGetStepUser
 		case "deptid":
-			p.DeptGetType = DeptGet_Deptid
+			p.DeptGetType = DeptGetDeptid
 			p.Deptid = dn.S("", "deptid")
 		case "stepuserparent":
-			p.DeptGetType = DeptGet_StepUserParent
+			p.DeptGetType = DeptGetStepUserParent
 		default:
 			return nil, errors.New("partici dtype not supported")
 		}
@@ -93,24 +91,25 @@ func New_Participant(n *xmlx.Node) (*Participant, error) {
 	return p, nil
 }
 
-func (p *Participant) FindUser(opd OrgProvider, fcase *FlowCase) ([]*FlowUser, error) {
+// FindUser 使用组织服务,
+func (p *Participant) FindUser(opd OrgService, fcase *FlowCase) ([]*FlowUser, error) {
 	//fmt.Println("particiType: ", p.ParticiType)
-	if p.ParticiType == ParitciType_Userid {
+	if p.ParticiType == ParitciTypeUserid {
 		//直接返回设定的userid
 		return opd.GetUser(p.Userid)
 
-	} else if p.ParticiType == ParitciType_Roledept {
+	} else if p.ParticiType == ParitciTypeRoledept {
 
 		switch p.DeptGetType {
-		case DeptGet_Deptid: //指定部门,的角色的人.
+		case DeptGetDeptid: //指定部门,的角色的人.
 			return opd.FindUser(p.Role, p.Deptid)
-		case DeptGet_Creator: //流程创建人所在的部门.
-			if dpid, err := opd.FindUserDept(fcase.CaseInfo.CreatorId); err != nil {
+		case DeptGetCreator: //流程创建人所在的部门.
+			if dpid, err := opd.FindUserDept(fcase.CaseInfo.CreatorID); err != nil {
 				return nil, err
 			} else {
 				return opd.FindUser(p.Role, dpid)
 			}
-		case DeptGet_StepUser: //上一个步骤处理人所在部门
+		case DeptGetStepUser: //上一个步骤处理人所在部门
 			caseItemCount := len(fcase.CaseItems)
 			lastUserid := fcase.CaseItems[int32(caseItemCount-1)].HandleUserid
 			if dpid, err := opd.FindUserDept(lastUserid); err != nil {
@@ -118,7 +117,7 @@ func (p *Participant) FindUser(opd OrgProvider, fcase *FlowCase) ([]*FlowUser, e
 			} else {
 				return opd.FindUser(p.Role, dpid)
 			}
-		case DeptGet_StepUserParent: //上一个步骤处理人所在部门的父部门
+		case DeptGetStepUserParent: //上一个步骤处理人所在部门的父部门
 			caseItemCount := len(fcase.CaseItems)
 			lastUserid := fcase.CaseItems[int32(caseItemCount-1)].HandleUserid
 			if ppid, err := opd.FindUserParentDept(lastUserid); err != nil {
@@ -130,18 +129,18 @@ func (p *Participant) FindUser(opd OrgProvider, fcase *FlowCase) ([]*FlowUser, e
 			return nil, errors.New("unsupported Participant DeptGetType")
 		}
 
-	} else if p.ParticiType == ParticiType_Dept {
+	} else if p.ParticiType == ParticiTypeDept {
 
 		switch p.DeptGetType {
-		case DeptGet_Deptid: //指定部门,的角色的人.
+		case DeptGetDeptid: //指定部门,的角色的人.
 			return opd.FindUserByDept(p.Deptid)
-		case DeptGet_Creator: //流程创建人所在的部门.
-			if dpid, err := opd.FindUserDept(fcase.CaseInfo.CreatorId); err != nil {
+		case DeptGetCreator: //流程创建人所在的部门.
+			if dpid, err := opd.FindUserDept(fcase.CaseInfo.CreatorID); err != nil {
 				return nil, err
 			} else {
 				return opd.FindUserByDept(dpid)
 			}
-		case DeptGet_StepUser: //上一个步骤处理人所在部门
+		case DeptGetStepUser: //上一个步骤处理人所在部门
 			caseItemCount := len(fcase.CaseItems)
 			lastUserid := fcase.CaseItems[int32(caseItemCount-1)].HandleUserid
 			if dpid, err := opd.FindUserDept(lastUserid); err != nil {
@@ -149,7 +148,7 @@ func (p *Participant) FindUser(opd OrgProvider, fcase *FlowCase) ([]*FlowUser, e
 			} else {
 				return opd.FindUserByDept(dpid)
 			}
-		case DeptGet_StepUserParent: //上一个步骤处理人所在部门的父部门
+		case DeptGetStepUserParent: //上一个步骤处理人所在部门的父部门
 			caseItemCount := len(fcase.CaseItems)
 			lastUserid := fcase.CaseItems[int32(caseItemCount-1)].HandleUserid
 			if ppid, err := opd.FindUserParentDept(lastUserid); err != nil {
@@ -161,7 +160,7 @@ func (p *Participant) FindUser(opd OrgProvider, fcase *FlowCase) ([]*FlowUser, e
 			return nil, errors.New("unsupported Participant DeptGetType")
 		}
 
-	} else if p.ParticiType == ParticiType_Role {
+	} else if p.ParticiType == ParticiTypeRole {
 
 		if u, err := opd.FindUserByRole(p.Role); err != nil {
 			return nil, err
@@ -169,23 +168,23 @@ func (p *Participant) FindUser(opd OrgProvider, fcase *FlowCase) ([]*FlowUser, e
 			return u, nil
 		}
 
-	} else if p.ParticiType == ParticiType_Free {
+	} else if p.ParticiType == ParticiTypeFree {
 
 		us := make([]*FlowUser, 0, 0)
 		//自由选择, 返回空的用户列表
 		return us, nil
 
-	} else if p.ParticiType == ParticiType_AnyUserid {
+	} else if p.ParticiType == ParticiTypeAnyUserid {
 
 		us := make([]*FlowUser, 0, 0)
 		return us, nil
 
-	} else if p.ParticiType == ParticiType_Creator {
+	} else if p.ParticiType == ParticiTypeCreator {
 
 		//流程创建人
-		return opd.GetUser(fcase.CaseInfo.CreatorId)
+		return opd.GetUser(fcase.CaseInfo.CreatorID)
 
-	} else if p.ParticiType == ParticiType_StepUsers {
+	} else if p.ParticiType == ParticiTypeStepUsers {
 
 		//参与过流程的人
 		users := make([]string, 0, len(fcase.CaseItems))

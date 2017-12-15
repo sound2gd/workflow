@@ -1,10 +1,7 @@
-package workflow
+package engine
 
 // FlowDefineService 流程定义服务接口
 type FlowDefineService interface {
-	//流程定义详情
-	GetFlow(flowid string) (*FlowInfo, error)
-
 	//保存一个新的流程定义
 	AddFlow(flow *FlowInfo, appid string) error
 
@@ -19,4 +16,10 @@ type FlowDefineService interface {
 
 	//停用流程
 	DisableFlow(flow *FlowInfo) error
+
+	// GetFlow 获得流程的定义（最新版本）属性:flowid, name, descript, flowxml
+	GetFlow(flowid string) (flow *Flow, err error)
+
+	// GetFlowByVersionNo 获取特定版本的流程定义
+	GetFlowByVersionNo(flowid string, versionno int32) (flow *Flow, err error)
 }

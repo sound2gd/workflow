@@ -1,59 +1,86 @@
-package workflow
+package engine
 
 import (
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/pobearm/workflow/util"
 	"time"
 )
 
 const (
-	Status_Start    = "发起"
-	Status_Finished = "通过"
-	Status_Abandon  = "不通过"
+	// StatusStart 发起
+	StatusStart = "started"
+	// StatusFinished 结束
+	StatusFinished = "finished"
+	// StatusAbandon 丢弃
+	StatusAbandon = "abandoned"
 )
 
-//流程下一步的信息
+// NextStatuInfo 流程下一步的信息
 type NextStatuInfo struct {
-	StepName   string
-	Users      []*FlowUser
-	IsFree     bool
-	SelectType bool //选择人员类型 1表示可以选择所有的人，0表示只能选Users数组的人
+	// StepName 步骤名称
+	StepName string
+	// Users 流程参与人
+	Users []*FlowUser
+	// IsFree 是否自由流程
+	IsFree bool
+	// SelectType 如何选择人员 0表示只能选Users数组内的人 1表示可以选择所有的人
+	SelectType bool
 }
 
+// Workflow 流程引擎对象
 type Workflow struct {
-	FlowDef    *Flow
-	Fcase      *FlowCase
-	Appdata    string
-	FlowProvid FlowProvider
-	OrgProvid  OrgProvider
+	// FlowDef 流程的定义
+	FlowDef *Flow
+	// Fcase 流程实例信息
+	Fcase *FlowCase
+	// Appdata 流程节点运算需要的业务数据, 用json格式传递.
+	Appdata string
+	// FlowDefSRV 流程定义管理服务
+	FlowDefSRV FlowDefineService
+	// OrgSRV 组织架构/人员管理服务
+	OrgSRV OrgService
+	// FlowCaseSRV 流程实例服务
+	CaseSRV FlowCaseService
 }
 
-func New_Workflow(connstr string) (*Workflow, error) {
-	fp, err := New_FlowPgProvider(connstr)
+// New_Workflow 创建一个新的工作流对象.
+// connstr: db连接串, 这个是多租户模式需要, 一个流程服务可以服务于多个租户数据库, 租户按数据库隔离.
+// 如果非多租户模式使用, db连接串写在服务配置文件.
+func NewWorkflow(connstr string) (*Workflow, error) {
+	fds, err := ServiceFactory{}.NewFlowDefineService(connstr)
 	if err != nil {
 		return nil, err
 	}
-	op, err := New_OrgPgProvider(connstr)
+	ogs, err := ServiceFactory{}.NewOrgService(connstr)
+	if err != nil {
+		return nil, err
+	}
+	css, err := ServiceFactory{}.NewCaseService(connstr)
 	if err != nil {
 		return nil, err
 	}
 	wf := &Workflow{
-		FlowProvid: fp,
-		OrgProvid:  op,
+		FlowDefSRV: fds,
+		OrgSRV:     ogs,
+		CaseSRV:    css,
 	}
 	return wf, nil
 }
 
-//加载一个已经存在的流程
+// LoadWorkflow 加载一个已经存在的流程
+// caseid: 流程实例id
+// appdata: 流程节点运算需要的数据
 func (w *Workflow) LoadWorkflow(caseid string, appdata string) error {
 	w.Appdata = appdata
-	fc, err := w.FlowProvid.LoadFlowCase(caseid)
+	fc, err := w.CaseSRV.LoadFlowCase(caseid)
 	if err != nil {
 		return err
 	}
 	w.Fcase = fc
 
-	wfd, err := w.FlowProvid.GetFlowByVersionNo(fc.CaseInfo.FlowId, fc.CaseInfo.VersionNo)
+	wfd, err := w.FlowDefSRV.GetFlowByVersionNo(fc.CaseInfo.FlowID, fc.CaseInfo.VersionNo)
 	if err != nil {
 		return err
 	}
@@ -61,30 +88,19 @@ func (w *Workflow) LoadWorkflow(caseid string, appdata string) error {
 	return nil
 }
 
-//加载流程数据, 并解析xml
-// func (w *Workflow) GetFlow(flowid string) (*Flow, error) {
-// 	return w.FlowProvid.GetFlow(flowid)
-// }
-
-//创建一个新的流程实例, 返回caseid
-func (w *Workflow) CreateWorkflow(caseid, flowid string, appdata string,
-	userid, username string) (string, string, error) {
-
+// CreateWorkflow 创建一个新的流程实例, 返回caseid
+func (w *Workflow) CreateWorkflow(caseid, flowid, appdata string, user FlowUser) (string, string, error) {
 	w.Appdata = appdata
 	//找到流程定义
-	wfd, err := w.FlowProvid.GetFlow(flowid)
+	wfd, err := w.FlowDefSRV.GetFlow(flowid)
 	if err != nil {
 		return "", "", err
 	}
 	w.FlowDef = wfd
 
-	log.Info("before.CreateWorkflow.caseid", caseid)
 	if caseid == "" {
-		caseid = uuid.NewV4().String()
+		caseid = uuid.New().String()
 	}
-	log.Info("after.CreateWorkflow.caseid", caseid)
-
-	log.Info("workflow.CreateWorkflow.w.FlowDef", w.FlowDef)
 	statusname := ""
 	for _, s := range w.FlowDef.FlowStatus {
 		if s.Sequence == 0 {
@@ -95,14 +111,14 @@ func (w *Workflow) CreateWorkflow(caseid, flowid string, appdata string,
 	if statusname == "" {
 		return "", "", errors.New("get sequence 0 status name error")
 	}
-	w.Fcase = New_StartFlowCase(userid, username, caseid, flowid, statusname, wfd.VersionNo)
+	w.Fcase = NewStartFlowCase(user.Userid, user.UserName, caseid, flowid, statusname, wfd.VersionNo)
+
 	//保存到数据库
 	serialnumberTemp := ""
 	versionno := wfd.VersionNo
-	if serialnumberTemp, err = w.FlowProvid.SaveNewCase(w.Fcase, versionno); err != nil {
+	if serialnumberTemp, err = w.CaseSRV.SaveNewCase(w.Fcase, versionno); err != nil {
 		return "", "", err
 	}
-	log.Debugf("workflow.CreateWorkflow", "%#v", w)
 	return serialnumberTemp, caseid, nil
 }
 
@@ -110,17 +126,13 @@ func (w *Workflow) CreateWorkflow(caseid, flowid string, appdata string,
 func (w *Workflow) PreCreateWorkflow(flowid string, appdata string, userid, username string) (string, error) {
 	w.Appdata = appdata
 	//找到流程定义
-	wfd, err := w.FlowProvid.GetFlow(flowid)
+	wfd, err := w.FlowDefSRV.GetFlow(flowid)
 	if err != nil {
 		return "", err
 	}
 	w.FlowDef = wfd
 
-	log.Info("workflow.CreateWorkflow.w.FlowDef.begin")
-	log.Info("workflow.CreateWorkflow.w.FlowDef", wfd)
-	log.Info("workflow.CreateWorkflow.w.FlowDef.end")
-
-	caseid := uuid.NewV4().String()
+	caseid := uuid.New().String()
 	statusname := ""
 	for _, s := range w.FlowDef.FlowStatus {
 		if s.Sequence == 0 {
@@ -131,22 +143,17 @@ func (w *Workflow) PreCreateWorkflow(flowid string, appdata string, userid, user
 	if statusname == "" {
 		return "", errors.New("get sequence 0 status name error")
 	}
-	w.Fcase = New_StartFlowCase(userid, username, caseid, flowid, statusname, wfd.VersionNo)
+	w.Fcase = NewStartFlowCase(userid, username, caseid, flowid, statusname, wfd.VersionNo)
 
-	log.Debugf("workflow.PreCreateWorkflow", "%#v", w)
 	return caseid, nil
 }
 
-//---------------------------------------------
 //预运算,计算一下步,以及下一步的处理人供用户选择
 //返回, 下一步骤的名称, 处理人列表, 如果步骤名称等于"结束""作废", 特殊处理
 func (w *Workflow) PreRun(itemid int32, choice string) (*NextStatuInfo, error) {
-	log.Debug("workflow.PreRun")
 
 	if itemid > 0 && choice == "重新发起" {
-		log.Debug(w.Fcase.CaseItems[itemid-1].Choice)
 		if w.Fcase.CaseItems[itemid-1].Choice == "退回" {
-			log.Debug(choice)
 			return w.PreRun(itemid, "")
 		}
 	}
@@ -154,9 +161,9 @@ func (w *Workflow) PreRun(itemid int32, choice string) (*NextStatuInfo, error) {
 	//找到当前步骤
 	ci, ok := w.Fcase.CaseItems[itemid]
 	if !ok {
-		return nil, fmt.Errorf("not found caseitem: %v in %s", itemid, w.Fcase.CaseInfo.CaseId)
+		return nil, fmt.Errorf("not found caseitem: %v in %s", itemid, w.Fcase.CaseInfo.CaseID)
 	}
-	if ci.StepStatus == StepStatus_Finish {
+	if ci.StepStatus == StepStatusFinish {
 		return nil, errors.New("step is finished: " + ci.StepName)
 	}
 	//检查一下流程的步骤名称,是否与流程状态吻合
@@ -187,11 +194,11 @@ func (w *Workflow) PreRun(itemid int32, choice string) (*NextStatuInfo, error) {
 
 	//计算下一步的处理人
 	//如果步骤名称等于"通过","不通过", 下一步处理人为空
-	if ns.Name == Status_Finished || ns.Name == Status_Abandon {
+	if ns.Name == StatusFinished || ns.Name == StatusAbandon {
 		nsInfo.Users = make([]*FlowUser, 0, 0)
 		nsInfo.SelectType = false
 		return nsInfo, nil
-	} else if ns.Name == Status_Start {
+	} else if ns.Name == StatusStart {
 		//步骤名称等于"发起", 处理人就是发起人
 		us := make([]*FlowUser, 0, 1)
 		startItem := w.Fcase.CaseItems[0]
@@ -207,7 +214,7 @@ func (w *Workflow) PreRun(itemid int32, choice string) (*NextStatuInfo, error) {
 		if ns.Partici == nil {
 			return nsInfo, errors.New("step not defined participant")
 		}
-		us, err := ns.Partici.FindUser(w.OrgProvid, w.Fcase)
+		us, err := ns.Partici.FindUser(w.OrgSRV, w.Fcase)
 		if err != nil {
 			return nil, err
 		}
@@ -252,9 +259,9 @@ func (w *Workflow) Run(itemid int32, choice, mark string, user *FlowUser) (strin
 	//找到当前步骤
 	ci, ok := w.Fcase.CaseItems[itemid]
 	if !ok {
-		return "", fmt.Errorf("not found caseitem: %v in %s", itemid, w.Fcase.CaseInfo.CaseId)
+		return "", fmt.Errorf("not found caseitem: %v in %s", itemid, w.Fcase.CaseInfo.CaseID)
 	}
-	if ci.StepStatus == StepStatus_Finish {
+	if ci.StepStatus == StepStatusFinish {
 		return "", errors.New("step is finished: " + ci.StepName)
 	}
 	//检查一下流程的步骤名称,是否与流程状态吻合
@@ -278,7 +285,6 @@ func (w *Workflow) Run(itemid int32, choice, mark string, user *FlowUser) (strin
 func (w *Workflow) runIntoStep(ns_name, choice, mark string, cs *Status,
 	ci *CaseItem, user *FlowUser) (string, error) {
 
-	log.Debug("workflow.runIntoStep")
 	ns, find := w.findNextStatus(ns_name, cs.Sequence+1)
 	if !find {
 		return "", fmt.Errorf(`not find status name: "%s", seq: "%v"`,
@@ -291,59 +297,59 @@ func (w *Workflow) runIntoStep(ns_name, choice, mark string, cs *Status,
 	//处理下一步骤的数据, 但还没有更新到数据库
 	//自由流程时, 如果没有选择人, 就直接跳到[通过]
 	if ns.IsFree() && user == nil {
-		ns = w.FlowDef.FlowStatus[Status_Finished]
+		ns = w.FlowDef.FlowStatus[StatusFinished]
 	}
 
 	//如果选择项是不通过（中止） 跳转[不通过]
-	if choice == Status_Abandon {
-		ns = w.FlowDef.FlowStatus[Status_Abandon]
+	if choice == StatusAbandon {
+		ns = w.FlowDef.FlowStatus[StatusAbandon]
 	}
 
-	ni, err := w.HandNextStep(int32(ci.ItemId+1), ns, user, w.Appdata)
+	ni, err := w.HandNextStep(int32(ci.ItemID+1), ns, user, w.Appdata)
 	if err != nil {
 		return "", err
 	}
 
 	//如果,一下步去到[通过], case.status=1, 到[不通过], case.status=2
-	if ni.StepName == Status_Finished {
+	if ni.StepName == StatusFinished {
 		w.Fcase.CaseInfo.Status = 1
 	}
-	if ni.StepName == Status_Abandon {
+	if ni.StepName == StatusAbandon {
 		w.Fcase.CaseInfo.Status = 2
 	}
 	//更新到数据库
-	if err := w.FlowProvid.ComitFlow(w.Fcase.CaseInfo, ci, ni); err != nil {
+	if err := w.CaseSRV.ComitFlow(w.Fcase.CaseInfo, ci, ni); err != nil {
 		return "", err
 	}
 	//----------------------------------------------------------------------
 	//执行当前步骤的退出处理器
-	if info, err := cs.OnExit(w.Appdata, w.Fcase, ci.ItemId); err != nil {
+	if info, err := cs.OnExit(w.Appdata, w.Fcase, ci.ItemID); err != nil {
 		//处理器, 处理失败, 只是记录日志, 不影响流程提交
 		ci.SysExitInfo = err.Error()
 	} else {
 		ci.SysExitInfo = info
 	}
 	//执行下一个步骤的进入处理器(消息推送是一个处理器)
-	if info, err := ns.OnEnter(w.Appdata, w.Fcase, ni.ItemId); err != nil {
+	if info, err := ns.OnEnter(w.Appdata, w.Fcase, ni.ItemID); err != nil {
 		//处理器, 处理失败, 只是记录日志, 不影响流程提交
 		ni.SysEnterInfo = err.Error()
 	} else {
 		ni.SysEnterInfo = info
 	}
 	//记录步骤OnExit, OnEnter的处理结果
-	if err := w.FlowProvid.StepHandled(w.Fcase.CaseInfo, ci, ni); err != nil {
+	if err := w.CaseSRV.StepHandled(w.Fcase.CaseInfo, ci, ni); err != nil {
 		return "", err
 	}
 
 	//push msg todo
 	//回写发送时间
 	caseinfo := &CaseInfo{
-		CaseId: w.Fcase.CaseInfo.CaseId,
-		ItemId: ni.ItemId,
+		CaseID: w.Fcase.CaseInfo.CaseID,
+		ItemID: ni.ItemID,
 	}
-	err = w.FlowProvid.WriteBackSendTime(caseinfo)
+	err = w.CaseSRV.WriteBackSendTime(caseinfo)
 	if err != nil {
-		log.Error("workflow.runIntoStep.WriteBackSendTime", err.Error())
+		return "", err
 	}
 
 	return ni.StepName, nil
@@ -351,11 +357,10 @@ func (w *Workflow) runIntoStep(ns_name, choice, mark string, cs *Status,
 
 //跳转到步骤, 如: 通过, 不通过
 func (w *Workflow) JumpToStep(itemid int32, stepname, choice, mark string, user *FlowUser) error {
-	log.Debug("workflow.JumpToStep")
 	//找到当前步骤
 	ci, ok := w.Fcase.CaseItems[itemid]
 	if !ok {
-		return fmt.Errorf("not found caseitem: %v in %s", itemid, w.Fcase.CaseInfo.CaseId)
+		return fmt.Errorf("not found caseitem: %v in %s", itemid, w.Fcase.CaseInfo.CaseID)
 	}
 	//检查一下流程的步骤名称,是否与流程状态吻合
 	if w.Fcase.CaseInfo.Step != ci.StepName {
@@ -378,79 +383,79 @@ func (w *Workflow) JumpToStep(itemid int32, stepname, choice, mark string, user 
 		return err
 	}
 	//处理下一步骤的数据, 但还没有更新到数据库
-	ni, err := w.HandNextStep(int32(ci.ItemId+1), ns, user, w.Appdata)
+	ni, err := w.HandNextStep(int32(ci.ItemID+1), ns, user, w.Appdata)
 	if err != nil {
 		return err
 	}
 	//如果,一下步去到[通过], case.status=1, 到[不通过], case.status=2
-	if ni.StepName == Status_Finished {
+	if ni.StepName == StatusFinished {
 		w.Fcase.CaseInfo.Status = 1
 	}
-	if ni.StepName == Status_Abandon {
+	if ni.StepName == StatusAbandon {
 		w.Fcase.CaseInfo.Status = 2
 
 		choiceName := "中止"
 		ci.Choice = choiceName
 	}
 	//最后一次更新到数据库
-	if err := w.FlowProvid.ComitFlow(w.Fcase.CaseInfo, ci, ni); err != nil {
+	if err := w.CaseSRV.ComitFlow(w.Fcase.CaseInfo, ci, ni); err != nil {
 		return err
 	}
 	//----------------------------------------------------------------------
 	//执行当前步骤的退出处理器
-	if info, err := cs.OnExit(w.Appdata, w.Fcase, ci.ItemId); err != nil {
+	if info, err := cs.OnExit(w.Appdata, w.Fcase, ci.ItemID); err != nil {
 		//处理器, 处理失败, 只是记录日志, 不影响流程提交
 		ci.SysExitInfo = err.Error()
 	} else {
 		ci.SysExitInfo = info
 	}
 	//执行下一个步骤的进入处理器(消息推送是一个处理器)
-	if info, err := ns.OnEnter(w.Appdata, w.Fcase, ni.ItemId); err != nil {
+	if info, err := ns.OnEnter(w.Appdata, w.Fcase, ni.ItemID); err != nil {
 		//处理器, 处理失败, 只是记录日志, 不影响流程提交
 		ni.SysEnterInfo = err.Error()
 	} else {
 		ni.SysEnterInfo = info
 	}
 	//记录步骤OnExit, OnEnter的处理结果
-	if err := w.FlowProvid.StepHandled(w.Fcase.CaseInfo, ci, ni); err != nil {
+	if err := w.CaseSRV.StepHandled(w.Fcase.CaseInfo, ci, ni); err != nil {
 		return err
 	}
 
 	//push msg todo
 	//回写发送时间
 	caseinfo := &CaseInfo{
-		CaseId: w.Fcase.CaseInfo.CaseId,
-		ItemId: w.Fcase.CaseInfo.ItemId,
+		CaseID: w.Fcase.CaseInfo.CaseID,
+		ItemID: w.Fcase.CaseInfo.ItemID,
 	}
-	err = w.FlowProvid.WriteBackSendTime(caseinfo)
+	err = w.CaseSRV.WriteBackSendTime(caseinfo)
 	if err != nil {
-		log.Error("workflow.JumpToStep.WriteBackSendTime", err.Error())
+		return err
 	}
 	return nil
 }
 
-//处理当前步骤的数据
+// HandlCurrentStep 处理当前步骤的数据
 func (w *Workflow) HandlCurrentStep(choice, mark string, ci *CaseItem, s *Status) error {
-	if ci.StepStatus == StepStatus_Finish {
+	if ci.StepStatus == StepStatusFinish {
 		return errors.New("step already finished")
 	}
 	ci.Choice = choice
 	ci.Mark = mark
-	ci.HandleTime = time.Now().Format(f_datetime)
-	ci.StepStatus = StepStatus_Finish
+	ci.HandleTime = time.Now().Format(util.DatetimeHMS)
+	ci.StepStatus = StepStatusFinish
 	return nil
 }
 
-//处理下一步骤的数据
+// HandNextStep 处理下一步骤的数据
 func (w *Workflow) HandNextStep(nid int32, ns *Status, user *FlowUser, appdata string) (*CaseItem, error) {
 	var ci *CaseItem
 	//如果步骤名称等于"通过""不通过", 下一步处理人, 为空
-	if ns.Name == Status_Finished || ns.Name == Status_Abandon {
+	if ns.Name == StatusFinished || ns.Name == StatusAbandon {
 		//新建下一步的caseitem
-		ci = New_CaseItem(nid, ns.Name, "", "")
+		ci = NewCaseItem(nid, ns.Name, "", "")
 		//直接进入结束状态, 不产生待办
-		ci.StepStatus = StepStatus_Finish
-		ci.HandleTime = time.Now().Format(f_datetime)
+		ci.StepStatus = StepStatusFinish
+		ci.HandleTime = time.Now().Format(util.DatetimeHMS)
 		//修改case的数据
 		w.Fcase.CaseInfo.EndTime = time.Now()
 		//即使是返回发起人, prerun的时候也已经找到人了, 所以这里不用再判断了
@@ -459,16 +464,16 @@ func (w *Workflow) HandNextStep(nid int32, ns *Status, user *FlowUser, appdata s
 			return nil, errors.New("step user is nil")
 		}
 		//新建下一步的caseitem
-		ci = New_CaseItem(nid, ns.Name, user.Userid, user.UserName)
+		ci = NewCaseItem(nid, ns.Name, user.Userid, user.UserName)
 		//判断是否有设置代理人, 如果有就标记代理人
-		agent, ok := w.FlowProvid.FindAgent(user.Userid)
+		agent, ok := w.CaseSRV.FindAgent(user.Userid)
 		if ok {
 			ci.SetAgent(agent.Userid, agent.UserName)
 		}
-		ci.StepStatus = StepStatus_New
+		ci.StepStatus = StepStatusNew
 	}
 	//修改case的数据
 	w.Fcase.CaseInfo.Step = ns.Name
-	w.Fcase.CaseItems[ci.ItemId] = ci
+	w.Fcase.CaseItems[ci.ItemID] = ci
 	return ci, nil
 }

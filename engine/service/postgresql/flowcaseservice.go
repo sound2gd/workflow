@@ -136,12 +136,12 @@ func (f *FlowPgProvider) LoadFlowCase(caseid string) (*FlowCase, error) {
 	}
 
 	c := &Case{
-		CaseId:         caseid,
-		ItemId:         itemid,
-		AppId:          appid,
-		FlowId:         flowid,
+		CaseID:         caseid,
+		ItemID:         itemid,
+		AppID:          appid,
+		FlowID:         flowid,
 		FlowName:       flowname,
-		CreatorId:      creator,
+		CreatorID:      creator,
 		CreatorName:    creatorname,
 		Step:           step,
 		Status:         status,
@@ -156,10 +156,10 @@ func (f *FlowPgProvider) LoadFlowCase(caseid string) (*FlowCase, error) {
 		c.AppData = appdata.String
 	}
 	if bizid1.Valid {
-		c.BizId1 = bizid1.String
+		c.BizID1 = bizid1.String
 	}
 	if bizid2.Valid {
-		c.BizId2 = bizid2.String
+		c.BizID2 = bizid2.String
 	}
 	if endtime.Valid {
 		c.EndTime = endtime.Time
@@ -177,7 +177,7 @@ func (f *FlowPgProvider) LoadFlowCase(caseid string) (*FlowCase, error) {
 		c.HandleTime = handletime.Time.Format(f_datetime)
 	}
 	if pluginid.Valid {
-		c.PluginId = pluginid.String
+		c.PluginID = pluginid.String
 	}
 	cis, err := f.GetCaseItems(caseid)
 	if err != nil {
@@ -232,7 +232,7 @@ func (f *FlowPgProvider) GetCaseItems(caseid string) (map[int32]*CaseItem, error
 			return nil, err
 		}
 		ci := &CaseItem{
-			ItemId:     itemid,
+			ItemID:     itemid,
 			StepName:   stepname,
 			CreateTime: createtime,
 			StepStatus: stepstatus,
@@ -268,7 +268,7 @@ func (f *FlowPgProvider) GetCaseItems(caseid string) (map[int32]*CaseItem, error
 		if choiceitems.Valid {
 			ci.ChoiceItems = choiceitems.String
 		}
-		cis[ci.ItemId] = ci
+		cis[ci.ItemID] = ci
 	}
 	//fmt.Println(cis)
 	return cis, nil
@@ -301,7 +301,7 @@ func (f *FlowPgProvider) SaveNewCase(fc *FlowCase, versionno int32) (string, err
 	sql_case := `INSERT INTO crm_t_flowcase(
 	caseid, flowid, creator, creatorname, step, createtime,serialnumber,versionno)
 	VALUES ($1, $2, $3, $4, $5, $6,$7,$8)`
-	if _, err := tx.Exec(sql_case, ca.CaseId, ca.FlowId, ca.CreatorId, ca.CreatorName,
+	if _, err := tx.Exec(sql_case, ca.CaseID, ca.FlowID, ca.CreatorID, ca.CreatorName,
 		ca.Step, ca.CreateTime, serialnumberTemp, versionno); err != nil {
 		tx.Rollback()
 		return "", err
@@ -311,7 +311,7 @@ func (f *FlowPgProvider) SaveNewCase(fc *FlowCase, versionno int32) (string, err
 	sql_ci := `INSERT INTO crm_t_flowcaseitem(
 	itemid, caseid, handleuserid, handleusername, stepname, stepstatus, createtime,handletime,sendtime)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	if _, err := tx.Exec(sql_ci, ci.ItemId, ca.CaseId, ci.HandleUserid, ci.HandleUserName,
+	if _, err := tx.Exec(sql_ci, ci.ItemID, ca.CaseID, ci.HandleUserid, ci.HandleUserName,
 		ci.StepName, ci.StepStatus, ci.CreateTime, time.Now(), time.Now()); err != nil {
 		tx.Rollback()
 		return "", err
@@ -333,7 +333,7 @@ func (f *FlowPgProvider) ComitFlow(ca *Case, ci *CaseItem, ni *CaseItem) error {
 		sql_case := `UPDATE crm_t_flowcase
 	SET step=$1, status=$2
 	WHERE caseid=$3`
-		if _, err := tx.Exec(sql_case, ca.Step, ca.Status, ca.CaseId); err != nil {
+		if _, err := tx.Exec(sql_case, ca.Step, ca.Status, ca.CaseID); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -341,7 +341,7 @@ func (f *FlowPgProvider) ComitFlow(ca *Case, ci *CaseItem, ni *CaseItem) error {
 		sql_case := `UPDATE crm_t_flowcase
 	SET step=$1, endtime=$2, status=$3
 	WHERE caseid=$4`
-		if _, err := tx.Exec(sql_case, ca.Step, ca.EndTime, ca.Status, ca.CaseId); err != nil {
+		if _, err := tx.Exec(sql_case, ca.Step, ca.EndTime, ca.Status, ca.CaseID); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -350,14 +350,14 @@ func (f *FlowPgProvider) ComitFlow(ca *Case, ci *CaseItem, ni *CaseItem) error {
 	SET stepstatus=$1, choice=$2, mark=$3, handletime=$4, sysexitinfo=$5
 	 WHERE itemid=$6 and caseid=$7`
 	if _, err := tx.Exec(sql_ci, ci.StepStatus, ci.Choice, ci.Mark, ci.HandleTime, ci.SysExitInfo,
-		ci.ItemId, ca.CaseId); err != nil {
+		ci.ItemID, ca.CaseID); err != nil {
 		tx.Rollback()
 		return err
 	}
 
 	//审核选项写入
 	//fmt.Println("审核选项")
-	flow, err := f.GetFlowByVersionNo(ca.FlowId, ca.VersionNo)
+	flow, err := f.GetFlowByVersionNo(ca.FlowID, ca.VersionNo)
 	if err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func (f *FlowPgProvider) ComitFlow(ca *Case, ci *CaseItem, ni *CaseItem) error {
 	itemid, caseid, handleuserid, handleusername, stepname, stepstatus, createtime, agentuserid,
 	 agentusername, sysenterinfo,choiceitems,handletime)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
-	if _, err := tx.Exec(sql_ni, ni.ItemId, ca.CaseId, ni.HandleUserid, ni.HandleUserName,
+	if _, err := tx.Exec(sql_ni, ni.ItemID, ca.CaseID, ni.HandleUserid, ni.HandleUserName,
 		ni.StepName, ni.StepStatus, ni.CreateTime, ni.AgentUserid, ni.AgentUserName, ni.SysEnterInfo,
 		choices, time.Now()); err != nil {
 		tx.Rollback()
@@ -431,11 +431,11 @@ func (f *FlowPgProvider) StepHandled(ca *Case, ci *CaseItem, ni *CaseItem) error
 	}
 	defer conn.Close()
 	sql_ci := `UPDATE crm_t_flowcaseitem SET sysexitinfo=$1 WHERE itemid=$2 and caseid=$3`
-	if _, err := conn.Exec(sql_ci, ci.SysExitInfo, ci.ItemId, ca.CaseId); err != nil {
+	if _, err := conn.Exec(sql_ci, ci.SysExitInfo, ci.ItemID, ca.CaseID); err != nil {
 		return err
 	}
 	sql_ni := `UPDATE crm_t_flowcaseitem SET sysenterinfo=$1 WHERE itemid=$2 and caseid=$3`
-	if _, err := conn.Exec(sql_ni, ni.SysEnterInfo, ni.ItemId, ca.CaseId); err != nil {
+	if _, err := conn.Exec(sql_ni, ni.SysEnterInfo, ni.ItemID, ca.CaseID); err != nil {
 		return err
 	}
 	return nil
@@ -449,7 +449,7 @@ func (f *FlowPgProvider) WriteBackSendTime(caseinfo *CaseInfo) error {
 		return err
 	}
 	defer conn.Close()
-	if _, err := conn.Exec(sql, time.Now(), caseinfo.CaseId, caseinfo.ItemId); err != nil {
+	if _, err := conn.Exec(sql, time.Now(), caseinfo.CaseID, caseinfo.ItemID); err != nil {
 		return err
 	}
 	return nil

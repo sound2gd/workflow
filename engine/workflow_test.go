@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"testing"
@@ -503,12 +503,12 @@ func Test_AddCase1(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	biz_1 := "12323232"
-	biz_2 := "2222222222"
+	biz1 := "12323232"
+	biz2 := "2222222222"
 	appdata := make(map[string]string)
 	appdata["amount"] = "15001"
 	appdata["product"] = "1001"
-	cs, err := wh.AddCase(wfid, username, userid, biz_1, biz_2, appdata)
+	cs, err := wh.AddCase(wfid, username, userid, biz1, biz2, appdata)
 	if err != nil {
 		t.Error(err)
 		return
@@ -525,12 +525,12 @@ func Test_AddCase2(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	biz_1 := "12323232"
-	biz_2 := ""
+	biz1 := "12323232"
+	biz2 := ""
 	appdata := make(map[string]string)
 	appdata["amount"] = "15001"
 	appdata["product"] = "1001"
-	cs, err := wh.AddCase(wfid, username, userid, biz_1, biz_2, appdata)
+	cs, err := wh.AddCase(wfid, username, userid, biz1, biz2, appdata)
 	if err != nil {
 		t.Error(err)
 		return
@@ -659,9 +659,9 @@ func Test_SendbackCase(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	biz_1 := "12323232"
-	biz_2 := ""
-	caseid, err := wh.AddCase(wfid, username, userid, biz_1, biz_2, appdata)
+	biz1 := "12323232"
+	biz2 := ""
+	caseid, err := wh.AddCase(wfid, username, userid, biz1, biz2, appdata)
 	if err != nil {
 		t.Error(err)
 		return
@@ -702,9 +702,9 @@ func Test_FallbackCase(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	biz_1 := "12323232"
-	biz_2 := ""
-	caseid, err := wh.AddCase(wfid, username, userid, biz_1, biz_2, appdata)
+	biz1 := "12323232"
+	biz2 := ""
+	caseid, err := wh.AddCase(wfid, username, userid, biz1, biz2, appdata)
 	if err != nil {
 		t.Error(err)
 		return

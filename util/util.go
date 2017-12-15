@@ -16,7 +16,7 @@ const (
 	DatetimeH = "2006-01-02 15"
 )
 
-// IntSliceToString int slice cobine to string with ","
+// IntSliceToString int slice combine to string with ","
 func IntSliceToString(intSlice []int) string {
 	str := ""
 	if len(intSlice) == 0 {
@@ -34,22 +34,27 @@ func IntSliceToString(intSlice []int) string {
 	return str
 }
 
-// RemoveFromIntSlice 传递的是引用,会改变原始的slice数据. ???
+// RemoveFromIntSlice remove elem from slice
 func RemoveFromIntSlice(intSlice []int, elem int) []int {
-	found := false
-	if len(intSlice) == 0 {
+	slen := len(intSlice)
+	if slen == 0 {
 		return intSlice
 	}
-	i := 0
-	for index, item := range intSlice {
-		if item == elem {
-			i = index
-			found = true
-			break
+	temp := make([]int, 0, slen)
+	for _, item := range intSlice {
+		if item != elem {
+			temp = append(temp, item)
 		}
 	}
-	if found {
-		intSlice = append(intSlice[:i], intSlice[i+1:]...)
+	return temp
+}
+
+// StringInSlice 字符是否在slice中存在
+func StringInSlice(str string, strSlice []string) (found bool) {
+	for _, s := range strSlice {
+		if str == s {
+			return true
+		}
 	}
-	return intSlice
+	return false
 }

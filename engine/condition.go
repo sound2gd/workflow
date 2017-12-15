@@ -1,29 +1,29 @@
-package workflow
+package engine
 
 import (
 	"errors"
-	// "fmt"
 	"github.com/jteeuwen/go-pkg-xmlx"
 	"github.com/widuu/gojson"
 	"strconv"
-	log "xtion.net/mcrm/logger"
 )
 
+//比较符常量
 const (
-	Op_Equal uint32 = iota
-	Op_Less
-	Op_Greater
-	Op_LessEq
-	Op_GreaterEq
-	Op_NotEq
+	OpEqual     uint32 = iota //等于
+	OpLess                    // <
+	OpGreater                 // >
+	OpLessEq                  // <=
+	OpGreaterEq               // >=
+	OpNotEq                   // !=
 )
 
+//逻辑操作符
 const (
-	Logic_And uint32 = iota
-	Logic_Or
+	LogicAnd uint32 = iota // and
+	LogicOr                // or
 )
 
-//条件
+// Condition 条件
 type Condition struct {
 	GetNot   bool   //是否取反
 	Operator uint32 //比较操作符
@@ -32,7 +32,8 @@ type Condition struct {
 	Logic    uint32 //逻辑操作符
 }
 
-func New_Condition(n *xmlx.Node) (*Condition, error) {
+// NewCondition 根据xml描述创建一个新的节点
+func NewCondition(n *xmlx.Node) (*Condition, error) {
 	cd := &Condition{}
 	cd.GetNot = n.Ab("", "getnot")
 	cd.DataKey = n.As("", "datakey")
@@ -41,81 +42,81 @@ func New_Condition(n *xmlx.Node) (*Condition, error) {
 	op := n.As("", "op")
 	switch op {
 	case "eq":
-		cd.Operator = Op_Equal
+		cd.Operator = OpEqual
 	case "less":
-		cd.Operator = Op_Less
+		cd.Operator = OpLess
 	case "greator":
-		cd.Operator = Op_Greater
+		cd.Operator = OpGreater
 	case "lesseq":
-		cd.Operator = Op_LessEq
+		cd.Operator = OpLessEq
 	case "greatoreq":
-		cd.Operator = Op_GreaterEq
+		cd.Operator = OpGreaterEq
 	case "noteq":
-		cd.Operator = Op_NotEq
+		cd.Operator = OpNotEq
 	default:
 		return nil, errors.New("Operator not supported")
 	}
 
 	lp := n.As("", "lop")
 	if lp == "and" || lp == "" {
-		cd.Logic = Logic_And
+		cd.Logic = LogicAnd
 	} else if lp == "or" {
-		cd.Logic = Logic_Or
+		cd.Logic = LogicOr
 	} else {
 		return nil, errors.New("logic op not supported")
 	}
 	return cd, nil
 }
 
-//计算条件结果
-func (c *Condition) Eval(appdataJson string) (bool, error) {
-	appdata := make(map[string]string)
-	//json ---> map[string]string
-	log.Debug("condition.Eval.appdata", appdata)
-	//todo: 这里目前只支持1级属性的获取, 以后可以扩展成: p1.pp2.ppp3,多级属性获取.
-	appdata = gojson.Json(appdataJson).GetDataFirstLevel()
+// Eval 计算条件结果
+// appdataJSON: appdata 的json字符串
+// 返回bool的结果
+func (c *Condition) Eval(appdataJSON string) (bool, error) {
+	appdata := gojson.Json(appdataJSON)
+	if appdata.IsValid() == false {
+		return false, errors.New("appdata parse to json failed. ")
+	}
 
 	re := false
-	tv, ok := appdata[c.DataKey]
-	if !ok {
-		log.Error("condition.Eval", "not find in appdata: ", c.DataKey)
-		return re, errors.New("not find in appdata: " + c.DataKey)
+	//todo: 这里目前只支持1级属性的获取, 以后可以扩展成: p1.pp2.ppp3,多级属性获取.
+	dataValue := appdata.Get(c.DataKey)
+	if dataValue.IsValid() == false {
+		return false, errors.New("key not found in appdata ")
 	}
-	//先判断等于和不等于两种情况, 用字符串比较
-	if c.Operator == Op_Equal {
-		re = (tv == c.Value)
+	dv := dataValue.Tostring()
+	//先判断等于和不等于两种情况, 用字符串格式比较
+	if c.Operator == OpEqual {
+		re = (dv == c.Value)
 		return re, nil
 	}
-	if c.Operator == Op_NotEq {
-		re = (tv != c.Value)
+	if c.Operator == OpNotEq {
+		re = (dv != c.Value)
 		return re, nil
 	}
-	if tv == "" {
-		log.Error("condition.Eval", "tv is empty")
-		return re, nil
+	if dv != "" && c.Value != "" {
+		//其他情况, 用float64比较, 只能比较大小
+		ft, err := strconv.ParseFloat(dv, 64)
+		if err != nil {
+			return re, err
+		}
+		fv, err := strconv.ParseFloat(c.Value, 64)
+		if err != nil {
+			return re, err
+		}
+		switch c.Operator {
+		case OpGreater:
+			re = (ft > fv)
+		case OpGreaterEq:
+			re = (ft >= fv)
+		case OpLess:
+			re = (ft < fv)
+		case OpLessEq:
+			re = (ft <= fv)
+		default:
+			return false, errors.New("condition Operator not supported")
+		}
 	}
-	//其他情况, 用float64比较
-	ft, err := strconv.ParseFloat(tv, 64)
-	if err != nil {
-		return re, err
-	}
-
-	fv, err := strconv.ParseFloat(c.Value, 64)
-	if err != nil {
-		return re, err
-	}
-	switch c.Operator {
-	case Op_Greater:
-		re = (ft > fv)
-	case Op_GreaterEq:
-		re = (ft >= fv)
-	case Op_Less:
-		re = (ft < fv)
-	case Op_LessEq:
-		re = (ft <= fv)
-	default:
-		return false, errors.New("condition Operator not supported")
-	}
+	//取反操作
 	if c.GetNot {
 		re = !re
 	}

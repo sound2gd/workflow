@@ -1,14 +1,14 @@
-package workflow
+package engine
 
 import (
 	"time"
 )
 
-// CaseInfo,DTO对象,流程事务
+// CaseInfo DTO对象,流程事务
 type CaseInfo struct {
-	CaseId         string    `json:"caseid"`         //流程实例id
-	ItemId         int32     `json:"itemid"`         //流程当前步骤id
-	FlowId         string    `json:"flowid"`         //流程id
+	CaseID         string    `json:"caseid"`         //流程实例id
+	ItemID         int32     `json:"itemid"`         //流程当前步骤id
+	FlowID         string    `json:"flowid"`         //流程id
 	Name           string    `json:"flowname"`       //流程名称
 	Creator        string    `json:"creator"`        //流程发起人账号
 	Creatorname    string    `json:"creatorname"`    //流程发起人姓名
@@ -26,28 +26,27 @@ type CaseInfo struct {
 	SendTime       string    `json:"sendtime"`       //发送时间
 	SerialNumber   string    `json:"serialnumber"`   //流水号
 	Choice         string    `json:"choice"`         //审核
-	PluginId       string    `json:"pluginid"`       //插件id
 	FlowStatus     int32     `json:"flowstatus"`     //流程状态 1启用0停用
 }
 
-//代办事务
+// CaseList 代办事务
 type CaseList struct {
 	Items      []*CaseInfo
 	TotalItems int32
 }
 
-//流程列表
+// FlowList 流程列表
 type FlowList struct {
 	Items      []*FlowInfo
 	TotalItems int32
 }
 
-//流程的信息
+// FlowInfo 流程的信息
 type FlowInfo struct {
-	FlowId         string    `json:"flowid"`
+	FlowID         string    `json:"flowid"`
 	Name           string    `json:"flowname"`
 	Descript       string    `json:"descript"`
-	FlowXml        string    `json:"flowxml"`
+	FlowXML        string    `json:"flowxml"`
 	StepCount      int32     `json:"stepcount"`
 	CreateTime     time.Time `json:"createtime"`
 	Creator        string    `json:"creator"`
@@ -55,7 +54,7 @@ type FlowInfo struct {
 	UpdateTime     string    `json:"updatetime"`
 	Updator        string    `json:"updator"`
 	FlowType       int32     `json:"flowtype"`
-	AppId          string    `json:"appid"`
+	AppID          string    `json:"appid"`
 	EntityType     int32     `json:"entitytype"`     //1系统对象2插件对象
 	FlowCategory   int32     `json:"flowcategory"`   //1表示固定流程，0表示自由流程
 	PluginStatus   int32     `json:"pluginstatus"`   //插件状态 1在用
@@ -63,47 +62,54 @@ type FlowInfo struct {
 	PowerControl   int32     `json:"powercontrol"`   //权限控制
 }
 
+// FlowCaseList 流程实例信息
+type FlowCaseList struct {
+	CaseInfo  *Case       //`json:"case"`      //流程实例信息
+	CaseItems []*CaseItem //`json:"caseitems"` //流程的步骤记录
+}
+
+// FlowService 流程服务接口
 type FlowService interface {
-	//获取用户的代办列表---flowname查询条件
+	// GetTodoCases 获取用户的代办列表---flowname查询条件
 	GetTodoCases(flowname, usernumber string, pageindex, pagesize int32) (*CaseList, error)
 
-	//获取用户事务列表
+	// GetMyCases 获取用户事务列表
 	GetMyCases(usernumber string, finishstate, filter, pageindex, pagesize int32,
 		flowid, keyword, begintime, endtime, createtime, handletime, sorttype string) (*CaseList, error)
 
-	//
+	// GetWorkFlows 获取流程列表, 可按状态, 名称过滤, 分页
 	GetWorkFlows(status, flowname string, pageindex, pagesize int32) (*FlowList, error)
 
-	//
-	GetWorkFlowsForMobile(status, flowname string, pageindex, pagesize int32) (*FlowList, error)
+	// GetWorkFlowsForMobile
+	// GetWorkFlowsForMobile(status, flowname string, pageindex, pagesize int32) (*FlowList, error)
 
 	//
-	GetWorkFlowsForWeb(status, flowname string,
-		pageindex, pagesize int32) (*FlowList, error)
+	//GetWorkFlowsForWeb(status, flowname string,
+	//	pageindex, pagesize int32) (*FlowList, error)
 
 	//获取流程定义列表
-	WorkFlows(status, flowname string, pageindex, pagesize int32,
-		dynamic_sql string) (*FlowList, error)
+	// WorkFlows(status, flowname string, pageindex, pagesize int32, dynamic_sql string) (*FlowList, error)
 
-	//
+	// GetWorkFlowDetail 获取指定流程的详情
 	GetWorkFlowDetail(flowid string) (*FlowInfo, error)
 
-	//流程实例详情
+	// GetCaseDetail 流程实例详情
 	GetCaseDetail(caseid string) (*FlowCaseList, error)
 
-	//新发起一个流程, 返回caseid
-	AddCase(enterprise, caseid, flowid, flowname, usernumber, username, biz_1, biz_2,
+	// AddCase 新发起一个流程, 返回caseid
+	// todo: caseid应该是返回的, 不是传入的, 返回的什么值?
+	AddCase(caseid, flowid, flowname, usernumber, username, biz1, biz2,
 		appid, handeruserid, handerusername string, copyuser []int,
 		appdata, remark string) (string, string, error)
 
-	//预新发起一个流程, 返回步骤和人
+	// PreAddCase 预新发起一个流程, 返回步骤和人
+	// todo: 跟下面是同一个方法
 	PreAddCase(flowid, usernumber, username, appdata string) (*NextStatuInfo, error)
 
-	//预提交, 选择审批选项, 返回下一步去到的步骤和可选审批人
-	PreCommitCase(caseid, choice string, itemid int32,
-		appdata string) (nsif *NextStatuInfo, err error)
+	// PreCommitCase 预提交, 选择审批选项, 返回下一步去到的步骤和可选审批人
+	PreCommitCase(caseid, choice string, itemid int32, appdata string) (nsif *NextStatuInfo, err error)
 
-	//处理待办项, 返回进入的状态名称
+	// CommitCase 处理待办项, 返回进入的状态名称
 	CommitCase(enterprise, usernumber, caseid, choice, remark string, itemid int32,
 		flowuser *FlowUser,
 		appdata string) (string, error)
@@ -134,6 +140,6 @@ type FlowService interface {
 	//动态获取审批选项
 	GetDynamicSel(flowid, stepname string) ([]*Choice, error)
 
-	//
+	//???
 	WBStepStatus(itemid int32, caseid, usernumber string)
 }

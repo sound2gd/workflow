@@ -66,9 +66,9 @@ func (f *FlowHelper) GetTodoCases(flowname, usernumber string,
 		af := &CaseInfo{}
 		var biz2 pgx.NullString
 		var ht pgx.NullTime
-		err := rows.Scan(&(af.ItemId), &(af.CaseId), &(af.Handleuserid), &(af.Handleusername),
+		err := rows.Scan(&(af.ItemID), &(af.CaseID), &(af.Handleuserid), &(af.Handleusername),
 			&(af.Stepname), &ht, &(af.Createtime), &(af.Creator), &(af.Creatorname), &(af.Status),
-			&(af.Name), &(af.FlowId), &(af.Appid), &(af.Bizid1), &biz2)
+			&(af.Name), &(af.FlowID), &(af.Appid), &(af.Bizid1), &biz2)
 		if err != nil {
 			return nil, err
 		}
@@ -290,20 +290,20 @@ func (f *FlowHelper) GetMyCases(usernumber string, finishstate, filter, pageinde
 		af := &CaseInfo{}
 
 		var ht, sendtime pgx.NullTime
-		var biz_2, handleuserid, handleusername, choice pgx.NullString
+		var biz2, handleuserid, handleusername, choice pgx.NullString
 		var choiceitems, serialnumber, pluginid pgx.NullString
 
-		err := rows.Scan(&af.ItemId, &af.CaseId, &af.Createtime, &af.Creator, &af.Creatorname, &af.FlowId, &af.Name,
+		err := rows.Scan(&af.ItemID, &af.CaseID, &af.Createtime, &af.Creator, &af.Creatorname, &af.FlowID, &af.Name,
 			&handleuserid, &handleusername, &choice, &af.Stepname, &af.Stepstatus, &af.Status, &af.FlowStatus,
-			&ht, &choiceitems, &sendtime, &af.Appid, &af.Bizid1, &biz_2, &serialnumber, &pluginid)
+			&ht, &choiceitems, &sendtime, &af.Appid, &af.Bizid1, &biz2, &serialnumber, &pluginid)
 		if err != nil {
 			log.Debug("workflow.flowhelper.GetMyCases", err.Error())
 		}
 		if ht.Valid {
 			af.Handletime = ht.Time.Format(f_datetime)
 		}
-		if biz_2.Valid {
-			af.Bizid2 = biz_2.String
+		if biz2.Valid {
+			af.Bizid2 = biz2.String
 		}
 		if choiceitems.Valid {
 			af.ChoiceItems = choiceitems.String
@@ -324,7 +324,7 @@ func (f *FlowHelper) GetMyCases(usernumber string, finishstate, filter, pageinde
 			af.Choice = choice.String
 		}
 		if pluginid.Valid {
-			af.PluginId = pluginid.String
+			af.PluginID = pluginid.String
 		}
 		calist.Items = append(calist.Items, af)
 		//calist.TotalItems++
@@ -418,7 +418,7 @@ func (f *FlowHelper) WorkFlows(status, flowname string, pageindex, pagesize int3
 	var entitytype, flowcategory, pstatus, pversionstatus pgx.NullInt32
 	for rows.Next() {
 		data := &FlowInfo{}
-		err := rows.Scan(&data.FlowId, &data.Name, &data.Descript, &data.StepCount, &data.CreateTime,
+		err := rows.Scan(&data.FlowID, &data.Name, &data.Descript, &data.StepCount, &data.CreateTime,
 			&data.Creator, &data.Status, &updatetime, &updateusername, &data.FlowType, &appid,
 			&entitytype, &flowcategory, &pstatus, &pversionstatus)
 		if err != nil {
@@ -431,7 +431,7 @@ func (f *FlowHelper) WorkFlows(status, flowname string, pageindex, pagesize int3
 			data.Updator = updateusername.String
 		}
 		if appid.Valid {
-			data.AppId = appid.String
+			data.AppID = appid.String
 		}
 		if entitytype.Valid {
 			data.EntityType = entitytype.Int32
@@ -498,7 +498,7 @@ func (f *FlowHelper) GetWorkFlowDetail(flowid string) (*FlowInfo, error) {
 	var entitytype, flowcategory, powercontrol pgx.NullInt32
 
 	data := &FlowInfo{}
-	err = row.Scan(&data.FlowId, &data.Name, &data.Descript, &data.FlowXml, &data.StepCount, &data.CreateTime,
+	err = row.Scan(&data.FlowID, &data.Name, &data.Descript, &data.FlowXML, &data.StepCount, &data.CreateTime,
 		&data.Creator, &data.Status, &updatetime, &updateusername, &data.FlowType, &appid, &entitytype, &powercontrol, &flowcategory)
 
 	if err != nil {
@@ -511,7 +511,7 @@ func (f *FlowHelper) GetWorkFlowDetail(flowid string) (*FlowInfo, error) {
 		data.Updator = updateusername.String
 	}
 	if appid.Valid {
-		data.AppId = appid.String
+		data.AppID = appid.String
 	}
 	if entitytype.Valid {
 		data.EntityType = entitytype.Int32
@@ -551,7 +551,7 @@ func (f *FlowHelper) GetCaseDetail(caseid string) (*FlowCaseList, error) {
 }
 
 //新发起一个流程, 返回caseid
-func (f *FlowHelper) AddCase(enterprise, caseid, flowid, flowname, usernumber, username, biz_1, biz_2,
+func (f *FlowHelper) AddCase(enterprise, caseid, flowid, flowname, usernumber, username, biz1, biz2,
 	appid, handeruserid, handerusername string, copyuser []int,
 	appdata, remark string) (string, string, error) {
 	wf, err := New_Workflow(f.constr)
@@ -580,7 +580,7 @@ func (f *FlowHelper) AddCase(enterprise, caseid, flowid, flowname, usernumber, u
 	//记录流程实例与业务数据的关联关系
 	sqlinsert := `insert into crm_t_appflowcase(caseid, bussinessid_1, bussinessid_2,appid)
 	values($1, $2, $3, $4)`
-	if _, err = conn.Exec(sqlinsert, caseid, biz_1, biz_2, appid); err != nil {
+	if _, err = conn.Exec(sqlinsert, caseid, biz1, biz2, appid); err != nil {
 		return "", "", err
 	}
 
@@ -610,7 +610,7 @@ func (f *FlowHelper) AddCase(enterprise, caseid, flowid, flowname, usernumber, u
 	usernumberInt, _ := strconv.Atoi(usernumber)
 	sqlInsertMessage := "select * from crm_f_m_w_taskjob_message_insert($1, $2, $3, $4, $5, $6, $7, $8);"
 	sqlUpdateMessage := "select crm_f_m_w_message_updatestatus($1, '00000000-0000-0000-0000-000000000000', $2, 1);"
-	parameters := biz_1 + ",1"
+	parameters := biz1 + ",1"
 
 	// 处理人
 	if _, err = conn.Exec(sqlInsertMessage, recordid1, caseid, contentHandler, parameters, 9, usernumberInt, time.Now().Format(f_datetime), handeruserid); err != nil {
@@ -643,7 +643,7 @@ func (f *FlowHelper) AddCase(enterprise, caseid, flowid, flowname, usernumber, u
 		push_contentHandler := fmt.Sprintf("%v,%v,%v,%v,%v", strconv.Itoa(msg_code), recordid1, caseid, "9", parameters)
 		msgModelHandler := &util.WfMessage{
 			EnterNumber:  enterprise,
-			FlowId:       caseid,
+			FlowID:       caseid,
 			Msg_key:      recordid1,
 			Msg_title:    "您收到了一条审批消息",
 			Content:      contentHandler,
@@ -668,7 +668,7 @@ func (f *FlowHelper) AddCase(enterprise, caseid, flowid, flowname, usernumber, u
 	push_contentCopyer := fmt.Sprintf("%v,%v,%v,%v,%v", strconv.Itoa(msg_code), recordid2, caseid, "11", parameters)
 	msgModelCopyer := &util.WfMessage{
 		EnterNumber:  enterprise,
-		FlowId:       caseid,
+		FlowID:       caseid,
 		Msg_key:      recordid2,
 		Msg_title:    "您收到了一条审批消息",
 		Content:      contentCopyer,
@@ -748,13 +748,13 @@ func (f *FlowHelper) CommitCase(enterprise, usernumber, caseid, choice, remark s
 		if err != nil {
 			return stepname, err
 		}
-		//flowid := wf.FlowDef.FlowId
+		//flowid := wf.FlowDef.FlowID
 		flowname := wf.FlowDef.FlowName
 		serialnumber := wf.Fcase.CaseInfo.SerialNumber
 
 		//发起人
-		applyer := wf.Fcase.CaseInfo.CreatorId
-		biz_1 := wf.Fcase.CaseInfo.BizId1
+		applyer := wf.Fcase.CaseInfo.CreatorID
+		biz1 := wf.Fcase.CaseInfo.BizID1
 
 		//审批状态 0:审批中 1:通过 2:不通过
 		//判断审批是否完成
@@ -814,7 +814,7 @@ func (f *FlowHelper) CommitCase(enterprise, usernumber, caseid, choice, remark s
 		sqlInsertMessage := "select * from crm_f_m_w_taskjob_message_insert($1, $2, $3, $4, $5, $6, $7, $8);"
 		sqlUpdateMessage := "select crm_f_m_w_message_updatestatus($1, '00000000-0000-0000-0000-000000000000', $2, 1);"
 		itemidString := strconv.Itoa(int(itemid + 1)) //审批要往后推一步
-		parameters := biz_1 + "," + itemidString
+		parameters := biz1 + "," + itemidString
 
 		// 处理人
 		if _, err = conn.Exec(sqlInsertMessage, recordid1, caseid, contentHandler, parameters, 9, usernumberInt, time.Now().Format(f_datetime), handeruserid); err != nil {
@@ -855,7 +855,7 @@ func (f *FlowHelper) CommitCase(enterprise, usernumber, caseid, choice, remark s
 			push_contentHandler := fmt.Sprintf("%v,%v,%v,%v,%v", strconv.Itoa(msg_code), recordid1, caseid, "9", parameters)
 			msgModelHandler := &util.WfMessage{
 				EnterNumber:  enterprise,
-				FlowId:       caseid,
+				FlowID:       caseid,
 				Msg_key:      recordid1,
 				Msg_title:    "您收到了一条审批消息",
 				Content:      contentHandler,
@@ -881,7 +881,7 @@ func (f *FlowHelper) CommitCase(enterprise, usernumber, caseid, choice, remark s
 		copyuser = removeFromArray(copyuser, usernumberInt)
 		msgModelCopyer := &util.WfMessage{
 			EnterNumber:  enterprise,
-			FlowId:       caseid,
+			FlowID:       caseid,
 			Msg_key:      recordid2,
 			Msg_title:    "您收到了一条审批消息",
 			Content:      contentCopyer,
@@ -906,7 +906,7 @@ func (f *FlowHelper) CommitCase(enterprise, usernumber, caseid, choice, remark s
 			push_contentApplyer := fmt.Sprintf("%v,%v,%v,%v,%v", strconv.Itoa(msg_code), recordid3, caseid, "10", parameters)
 			msgModelApplyer := &util.WfMessage{
 				EnterNumber:  enterprise,
-				FlowId:       caseid,
+				FlowID:       caseid,
 				Msg_key:      recordid3,
 				Msg_title:    "您收到了一条审批消息",
 				Content:      contentApplyer,
@@ -951,8 +951,8 @@ func (f *FlowHelper) AbandonCase(enterprise, usernumber, caseid, choice, remark 
 	creatorName := wf.Fcase.CaseInfo.CreatorName
 	//抄送人
 	copyuser := wf.Fcase.CaseInfo.CopyUser
-	//业务实体Id
-	biz_1 := wf.Fcase.CaseInfo.BizId1
+	//业务实体ID
+	biz1 := wf.Fcase.CaseInfo.BizID1
 	//当前步骤处理人
 	//handlerName := wf.Fcase.CaseInfo.HandleUserName
 	//流程名
@@ -975,7 +975,7 @@ func (f *FlowHelper) AbandonCase(enterprise, usernumber, caseid, choice, remark 
 	sqlInsertMessage := "select * from crm_f_m_w_taskjob_message_insert($1, $2, $3, $4, $5, $6, $7, $8);"
 	sqlUpdateMessage := "select crm_f_m_w_message_updatestatus($1, '00000000-0000-0000-0000-000000000000', $2, 1);"
 	itemidString := strconv.Itoa(int(itemid))
-	parameters := biz_1 + "," + itemidString
+	parameters := biz1 + "," + itemidString
 
 	conn, err := pgx.Connect(*f.conCfg)
 	if err != nil {
@@ -1010,7 +1010,7 @@ func (f *FlowHelper) AbandonCase(enterprise, usernumber, caseid, choice, remark 
 	copyuser = removeFromArray(copyuser, usernumberInt)
 	msgModelCopyer := &util.WfMessage{
 		EnterNumber:  enterprise,
-		FlowId:       caseid,
+		FlowID:       caseid,
 		Msg_key:      recordid2,
 		Msg_title:    "您收到了一条审批消息",
 		Content:      contentCopyer,
@@ -1035,7 +1035,7 @@ func (f *FlowHelper) AbandonCase(enterprise, usernumber, caseid, choice, remark 
 		push_contentApplyer := fmt.Sprintf("%v,%v,%v,%v,%v", strconv.Itoa(msg_code), recordid3, caseid, "10", parameters)
 		msgModelApplyer := &util.WfMessage{
 			EnterNumber:  enterprise,
-			FlowId:       caseid,
+			FlowID:       caseid,
 			Msg_key:      recordid3,
 			Msg_title:    "您收到了一条审批消息",
 			Content:      contentApplyer,
@@ -1090,13 +1090,13 @@ func (f *FlowHelper) SendbackCase(enterprise, usernumber, caseid, choice, remark
 	user := &FlowUser{Userid: ni.HandleUserid, UserName: ni.HandleUserName}
 
 	//发起人
-	applyer := wf.Fcase.CaseInfo.CreatorId
+	applyer := wf.Fcase.CaseInfo.CreatorID
 	//发起人姓名
 	creatorName := wf.Fcase.CaseInfo.CreatorName
 	//抄送人
 	copyuser := wf.Fcase.CaseInfo.CopyUser
-	//业务实体Id
-	biz_1 := wf.Fcase.CaseInfo.BizId1
+	//业务实体ID
+	biz1 := wf.Fcase.CaseInfo.BizID1
 	//当前步骤处理人
 	handlerName := wf.Fcase.CaseInfo.HandleUserName
 	//流程名
@@ -1119,7 +1119,7 @@ func (f *FlowHelper) SendbackCase(enterprise, usernumber, caseid, choice, remark
 	sqlInsertMessage := "select * from crm_f_m_w_taskjob_message_insert($1, $2, $3, $4, $5, $6, $7, $8);"
 	sqlUpdateMessage := "select crm_f_m_w_message_updatestatus($1, '00000000-0000-0000-0000-000000000000', $2, 1);"
 	itemidString := strconv.Itoa(int(itemid + 1)) //往后推一步（退回是审批的一种特殊情况）
-	parameters := biz_1 + "," + itemidString
+	parameters := biz1 + "," + itemidString
 
 	conn, err := pgx.Connect(*f.conCfg)
 	if err != nil {
@@ -1154,7 +1154,7 @@ func (f *FlowHelper) SendbackCase(enterprise, usernumber, caseid, choice, remark
 	copyuser = removeFromArray(copyuser, usernumberInt)
 	msgModelCopyer := &util.WfMessage{
 		EnterNumber:  enterprise,
-		FlowId:       caseid,
+		FlowID:       caseid,
 		Msg_key:      recordid2,
 		Msg_title:    "您收到了一条审批消息",
 		Content:      contentCopyer,
@@ -1179,7 +1179,7 @@ func (f *FlowHelper) SendbackCase(enterprise, usernumber, caseid, choice, remark
 		push_contentApplyer := fmt.Sprintf("%v,%v,%v,%v,%v", strconv.Itoa(msg_code), recordid3, caseid, "10", parameters)
 		msgModelApplyer := &util.WfMessage{
 			EnterNumber:  enterprise,
-			FlowId:       caseid,
+			FlowID:       caseid,
 			Msg_key:      recordid3,
 			Msg_title:    "您收到了一条审批消息",
 			Content:      contentApplyer,
@@ -1320,10 +1320,10 @@ func (f *FlowHelper) GetFlow(flowid string) (*FlowInfo, error) {
 		return nil, err
 	}
 	fi := &FlowInfo{
-		FlowId:     flowid,
+		FlowID:     flowid,
 		Name:       name,
 		Descript:   desc,
-		FlowXml:    flowxml,
+		FlowXML:    flowxml,
 		StepCount:  stepcount,
 		CreateTime: createtime,
 		Creator:    creator,
@@ -1363,14 +1363,14 @@ func (f *FlowHelper) AddFlow(flow *FlowInfo, appid string) error {
 	}
 	defer tx.Rollback()
 
-	_, err := conn.Exec(sql, flow.FlowId, flow.Name, flow.Descript, flow.FlowXml,
+	_, err := conn.Exec(sql, flow.FlowID, flow.Name, flow.Descript, flow.FlowXML,
 		flow.StepCount, flow.CreateTime, flow.Creator, flow.FlowCategory, flow.CreateTime, flow.Creator)
 	if err != nil {
 		return err
 	}
 	//写入表单对象
 	sql_app := `insert into crm_t_appflow(appid, flowid) values($1, $2)`
-	if _, err := conn.Exec(sql_app, appid, flow.FlowId); err != nil {
+	if _, err := conn.Exec(sql_app, appid, flow.FlowID); err != nil {
 		return err
 	}
 
@@ -1434,7 +1434,7 @@ func (f *FlowHelper) UpdateFlow(flow *FlowInfo) error {
 	validate_conn, _ := pgx.Connect(*f.conCfg)
 	defer validate_conn.Close()
 
-	row := validate_conn.QueryRow(validate_sql, flow.Name, flow.FlowId)
+	row := validate_conn.QueryRow(validate_sql, flow.Name, flow.FlowID)
 	var count int32
 	validate_err := row.Scan(&count)
 	if validate_err != nil {
@@ -1455,7 +1455,7 @@ func (f *FlowHelper) UpdateFlow(flow *FlowInfo) error {
 		log.Error("flowhelper.UpdateFlow", err1.Error())
 		return err1
 	}
-	old_flow, err := f.GetFlow(flow.FlowId)
+	old_flow, err := f.GetFlow(flow.FlowID)
 	if err != nil {
 		return err
 	}
@@ -1463,16 +1463,16 @@ func (f *FlowHelper) UpdateFlow(flow *FlowInfo) error {
 	sql_version := `insert into crm_t_workflow_version
 	(versionid, flowid, name, flowxml, updatetime, updateusername, versionno)
 	values($1,$2,$3,$4,$5,$6,(select versionno from crm_t_workflow where flowid = $7 limit 1))`
-	if _, err := conn.Exec(sql_version, uuid.NewV4().String(), old_flow.FlowId, old_flow.Name, old_flow.FlowXml,
-		flow.UpdateTime, flow.Updator, old_flow.FlowId); err != nil {
+	if _, err := conn.Exec(sql_version, uuid.NewV4().String(), old_flow.FlowID, old_flow.Name, old_flow.FlowXML,
+		flow.UpdateTime, flow.Updator, old_flow.FlowID); err != nil {
 		return err
 	}
 	sql := `UPDATE crm_t_workflow set name = $1, descript = $2, flowxml = $3, stepcount = $4,
 	updatetime = $5,updateusername = $6,versionno = versionno + 1
 	where flowid = $7`
 
-	if _, err := conn.Exec(sql, flow.Name, flow.Descript, flow.FlowXml, flow.StepCount, flow.UpdateTime,
-		flow.Updator, flow.FlowId); err != nil {
+	if _, err := conn.Exec(sql, flow.Name, flow.Descript, flow.FlowXML, flow.StepCount, flow.UpdateTime,
+		flow.Updator, flow.FlowID); err != nil {
 		return err
 	}
 
@@ -1493,7 +1493,7 @@ func (f *FlowHelper) EnableFlow(flow *FlowInfo) error {
 		return err
 	}
 	defer conn.Close()
-	if _, err := conn.Exec(sql, status, flow.FlowId); err != nil {
+	if _, err := conn.Exec(sql, status, flow.FlowID); err != nil {
 		return err
 	}
 	return nil
@@ -1509,7 +1509,7 @@ func (f *FlowHelper) DisableFlow(flow *FlowInfo) error {
 		return err
 	}
 	defer conn.Close()
-	if _, err := conn.Exec(sql, status, flow.FlowId); err != nil {
+	if _, err := conn.Exec(sql, status, flow.FlowID); err != nil {
 		return err
 	}
 
@@ -1530,7 +1530,7 @@ func (f *FlowHelper) WBStepStatus(itemid int32, caseid, usernumber string) error
 		return err
 	}
 
-	if flowcase.CaseInfo.ItemId == itemid &&
+	if flowcase.CaseInfo.ItemID == itemid &&
 		flowcase.CaseInfo.HandleUserid != usernumber {
 		log.Debug("fh.WBStepStatus", "have no power to writeback")
 		return nil
@@ -1610,7 +1610,7 @@ func (f *FlowHelper) GetWorkFlowStatus(appid, bizids string, wfstatus int32) (*P
 			return nil, err
 		}
 		if bizid.Valid {
-			af.BizId = bizid.String
+			af.BizID = bizid.String
 		}
 		if status.Valid == true {
 			switch int(status.Int32) {
@@ -1642,7 +1642,7 @@ func (f *FlowHelper) GetWorkFlowStatus(appid, bizids string, wfstatus int32) (*P
 
 //插件流程对象
 type PluginWorkFlowInfo struct {
-	BizId          string `json:"bizid"`          //业务id
+	BizID          string `json:"bizid"`          //业务id
 	WorkFlowStatus string `json:"workflowstatus"` //流程审批状态 0审批中1通过2不通过
 }
 

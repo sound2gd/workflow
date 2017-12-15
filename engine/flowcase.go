@@ -1,29 +1,25 @@
-package workflow
+package engine
 
 import (
 	"time"
 )
 
-//流程实例的数据
+// FlowCase 流程实例的数据
 type FlowCase struct {
 	CaseInfo  *Case               //`json:"case"`      //流程实例信息
 	CaseItems map[int32]*CaseItem //`json:"caseitems"` //流程的步骤记录
 }
 
-type FlowCaseList struct {
-	CaseInfo  *Case       //`json:"case"`      //流程实例信息
-	CaseItems []*CaseItem //`json:"caseitems"` //流程的步骤记录
-}
-
+// Case 流程实例对象
 type Case struct {
-	CaseId         string    `json:"caseid"` //实例id
-	ItemId         int32     `json:"itemid"` //当前实例顺序
-	AppId          string    `json:"appid"`
-	BizId1         string    `json:"bizid1"`
-	BizId2         string    `json:"bizid2"`
-	FlowId         string    `json:"flowid"`         //流程定义id
+	CaseID         string    `json:"caseid"` //实例id
+	ItemID         int32     `json:"itemid"` //当前实例顺序
+	AppID          string    `json:"appid"`
+	BizID1         string    `json:"bizid1"`
+	BizID2         string    `json:"bizid2"`
+	FlowID         string    `json:"flowid"`         //流程定义id
 	FlowName       string    `json:"flowname"`       //流程名称
-	CreatorId      string    `json:"creatorid"`      //创建人id
+	CreatorID      string    `json:"creatorid"`      //创建人id
 	CreatorName    string    `json:"creatorname"`    //创建人名字
 	Step           string    `json:"stepname"`       //当前状态
 	Status         int32     `json:"status"`         //状态 0:审批中 1:通过 2:不通过
@@ -38,30 +34,31 @@ type Case struct {
 	HandleUserName string    `json:"handleusername"` //处理人名字
 	HandleTime     string    `json:"handletime"`     //处理时间
 	StepStatus     int32     `json:"stepstatus"`     //处理状态 0未读1已读2已处理
-	PluginId       string    `json:"pluginid"`
+	PluginID       string    `json:"pluginid"`
 	VersionNo      int32     `json:"versionno"`
 }
 
-func New_StartFlowCase(creatorid, creatorname, caseid, flowid, step string, versionno int32) *FlowCase {
+// NewStartFlowCase 新启动一个流程实例
+func NewStartFlowCase(creatorid, creatorname, caseid, flowid, step string, versionno int32) *FlowCase {
 	c := &Case{
-		CaseId:      caseid,
-		FlowId:      flowid,
-		CreatorId:   creatorid,
+		CaseID:      caseid,
+		FlowID:      flowid,
+		CreatorID:   creatorid,
 		CreatorName: creatorname,
 		Step:        step,
 		Status:      0,
 		CreateTime:  time.Now(),
 		VersionNo:   versionno,
 	}
-	ci := New_CaseItem(0, step, creatorid, creatorname)
+	ci := NewCaseItem(0, step, creatorid, creatorname)
 	cis := make(map[int32]*CaseItem)
-	cis[ci.ItemId] = ci
+	cis[ci.ItemID] = ci
 	return &FlowCase{CaseInfo: c, CaseItems: cis}
 }
 
-//流程实例的任务数据
+// CaseItem 流程实例的步骤数据
 type CaseItem struct {
-	ItemId         int32     `json:"itemid"`         //步骤id
+	ItemID         int32     `json:"itemid"`         //步骤id
 	HandleUserid   string    `json:"handleuserid"`   //步骤处理人
 	HandleUserName string    `json:"handleusername"` //处理人名字
 	StepName       string    `json:"stepname"`       //这个步骤的状态名字
@@ -79,23 +76,24 @@ type CaseItem struct {
 
 //流程步骤的状态
 const (
-	StepStatus_New int32 = iota
-	StepStatus_Read
-	StepStatus_Finish
+	StepStatusNew int32 = iota
+	StepStatusRead
+	StepStatusFinish
 )
 
-func New_CaseItem(itemid int32, stepname, userid, username string) *CaseItem {
+// NewCaseItem 新创建步骤流转信息
+func NewCaseItem(itemid int32, stepname, userid, username string) *CaseItem {
 	return &CaseItem{
-		ItemId:         itemid,
+		ItemID:         itemid,
 		StepName:       stepname,
 		HandleUserid:   userid,
 		HandleUserName: username,
 		CreateTime:     time.Now(),
-		StepStatus:     StepStatus_New,
+		StepStatus:     StepStatusNew,
 	}
 }
 
-//设置代理人
+// SetAgent 设置代理人
 func (c *CaseItem) SetAgent(userid, username string) {
 	c.AgentUserid = userid
 	c.AgentUserName = username

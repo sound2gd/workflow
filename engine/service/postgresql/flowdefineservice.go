@@ -31,10 +31,10 @@ func (f *FlowHelper) GetFlow(flowid string) (*FlowInfo, error) {
 		return nil, err
 	}
 	fi := &FlowInfo{
-		FlowId:     flowid,
+		FlowID:     flowid,
 		Name:       name,
 		Descript:   desc,
-		FlowXml:    flowxml,
+		FlowXML:    flowxml,
 		StepCount:  stepcount,
 		CreateTime: createtime,
 		Creator:    creator,
@@ -74,14 +74,14 @@ func (f *FlowHelper) AddFlow(flow *FlowInfo, appid string) error {
 	}
 	defer tx.Rollback()
 
-	_, err := conn.Exec(sql, flow.FlowId, flow.Name, flow.Descript, flow.FlowXml,
+	_, err := conn.Exec(sql, flow.FlowID, flow.Name, flow.Descript, flow.FlowXML,
 		flow.StepCount, flow.CreateTime, flow.Creator, flow.FlowCategory, flow.CreateTime, flow.Creator)
 	if err != nil {
 		return err
 	}
 	//写入表单对象
 	sql_app := `insert into crm_t_appflow(appid, flowid) values($1, $2)`
-	if _, err := conn.Exec(sql_app, appid, flow.FlowId); err != nil {
+	if _, err := conn.Exec(sql_app, appid, flow.FlowID); err != nil {
 		return err
 	}
 
@@ -145,7 +145,7 @@ func (f *FlowHelper) UpdateFlow(flow *FlowInfo) error {
 	validate_conn, _ := pgx.Connect(*f.conCfg)
 	defer validate_conn.Close()
 
-	row := validate_conn.QueryRow(validate_sql, flow.Name, flow.FlowId)
+	row := validate_conn.QueryRow(validate_sql, flow.Name, flow.FlowID)
 	var count int32
 	validate_err := row.Scan(&count)
 	if validate_err != nil {
@@ -166,7 +166,7 @@ func (f *FlowHelper) UpdateFlow(flow *FlowInfo) error {
 		log.Error("flowhelper.UpdateFlow", err1.Error())
 		return err1
 	}
-	old_flow, err := f.GetFlow(flow.FlowId)
+	old_flow, err := f.GetFlow(flow.FlowID)
 	if err != nil {
 		return err
 	}
@@ -174,16 +174,16 @@ func (f *FlowHelper) UpdateFlow(flow *FlowInfo) error {
 	sql_version := `insert into crm_t_workflow_version
 	(versionid, flowid, name, flowxml, updatetime, updateusername, versionno)
 	values($1,$2,$3,$4,$5,$6,(select versionno from crm_t_workflow where flowid = $7 limit 1))`
-	if _, err := conn.Exec(sql_version, uuid.NewV4().String(), old_flow.FlowId, old_flow.Name, old_flow.FlowXml,
-		flow.UpdateTime, flow.Updator, old_flow.FlowId); err != nil {
+	if _, err := conn.Exec(sql_version, uuid.NewV4().String(), old_flow.FlowID, old_flow.Name, old_flow.FlowXML,
+		flow.UpdateTime, flow.Updator, old_flow.FlowID); err != nil {
 		return err
 	}
 	sql := `UPDATE crm_t_workflow set name = $1, descript = $2, flowxml = $3, stepcount = $4,
 	updatetime = $5,updateusername = $6,versionno = versionno + 1
 	where flowid = $7`
 
-	if _, err := conn.Exec(sql, flow.Name, flow.Descript, flow.FlowXml, flow.StepCount, flow.UpdateTime,
-		flow.Updator, flow.FlowId); err != nil {
+	if _, err := conn.Exec(sql, flow.Name, flow.Descript, flow.FlowXML, flow.StepCount, flow.UpdateTime,
+		flow.Updator, flow.FlowID); err != nil {
 		return err
 	}
 
@@ -204,7 +204,7 @@ func (f *FlowHelper) EnableFlow(flow *FlowInfo) error {
 		return err
 	}
 	defer conn.Close()
-	if _, err := conn.Exec(sql, status, flow.FlowId); err != nil {
+	if _, err := conn.Exec(sql, status, flow.FlowID); err != nil {
 		return err
 	}
 	return nil
@@ -220,7 +220,7 @@ func (f *FlowHelper) DisableFlow(flow *FlowInfo) error {
 		return err
 	}
 	defer conn.Close()
-	if _, err := conn.Exec(sql, status, flow.FlowId); err != nil {
+	if _, err := conn.Exec(sql, status, flow.FlowID); err != nil {
 		return err
 	}
 

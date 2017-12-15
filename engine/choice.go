@@ -1,44 +1,38 @@
-package workflow
+package engine
 
 import "github.com/jteeuwen/go-pkg-xmlx"
 
-//流程步骤的选择项
+// Choice 流程步骤的选择项, 如: 同意 / 不同意
 type Choice struct {
-	Index     int
-	Name      string            //选择项的值
-	Trans     *Transition       //选项对应的状态变化
-	AllEdit   bool              //允许编辑所有字段
-	DataItems []*ChoiceDataItem //审批时需要填写的数据
+	Index int         //选项的序号
+	Name  string      //选择项的值
+	Trans *Transition //选项对应的状态变化
 }
 
-type ChoiceResp struct {
-	Name      string            //选择项的值
-	DataItems []*ChoiceDataItem //审批时需要填写的数据
-}
-
-func New_Choice(n *xmlx.Node) (*Choice, error) {
+// NewChoice 从xml的描述中,创建choice对象
+func NewChoice(n *xmlx.Node) (*Choice, error) {
 	c := &Choice{}
 	c.Name = n.As("", "name")
-	//fmt.Println(c)
-	//迁移
+	//迁移的描述节点
 	tn := n.SelectNode("", "transition")
-	if t, err := New_Transition(tn); err != nil {
+	//创建迁移对象
+	if t, err := NewTransition(tn); err != nil {
 		return nil, err
 	} else {
 		c.Trans = t
 	}
-	//数据填写项
-	if dns := n.SelectNode("", "dataitems"); dns != nil {
-		c.AllEdit = dns.Ab("", "alledit")
-		items := dns.SelectNodes("", "item")
-		c.DataItems = make([]*ChoiceDataItem, len(items))
-		for i, in := range items {
-			if d, err := New_ChoiceDataItem(in); err != nil {
-				return nil, err
-			} else {
-				c.DataItems[i] = d
-			}
-		}
-	}
 	return c, nil
+}
+
+// ByIndex 实现choice按index排序?
+type ByIndex map[int]*Choice
+
+func (s ByIndex) Len() int {
+	return len(s)
+}
+func (s ByIndex) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByIndex) Less(i, j int) bool {
+	return s[i].Index < s[j].Index
 }
